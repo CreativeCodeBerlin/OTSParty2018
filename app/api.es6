@@ -1,22 +1,34 @@
 const Router = require('koa-router');
+const path = require('path');
+const fs = require('fs');
+
+const projectFolder = path.join(global.__base, 'public', 'projects');
 
 var api = new Router({
    prefix: '/api'
 });
 
-api.get('/pieces', (ctx, next) => {
-   var pieces = {
-      one: 2,
-      two: 3
-   };
+// display list of projects
+api.get('/pieces', async (ctx, next) => {
+   var pieces = [];
 
+   await new Promise(resolve => {
+      fs.readdir(projectFolder, (err, files) => {
+         pieces = files;
+         resolve();
+      });
+   });
+
+   ctx.status = 200;
    ctx.body = JSON.stringify(pieces);
+
    next();
+
 });
 
-api.post('/play/:id', (ctx, next) => {
-   console.log(`getting play id = ${ctx.params.id}`);
-   ctx.body = `Hello api id ${ctx.params.id}`;
+// set a piece for playing
+api.post('/play/:piecename', (ctx, next) => {
+   ctx.body = `API | play ${ctx.params.piecename}`;
    next();
 });
 
