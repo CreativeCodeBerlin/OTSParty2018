@@ -4,7 +4,8 @@
   "description": "Code for the 2018 OpenTechSchool anniversary party at Spektrum Berlin",
   "main": "app/server.js",
   "scripts": {
-    "start": "node app/server.es6"
+    "start": "node app/server.es6",
+    "postinstall": "mkdir public && cp node_modules/socket.io-client/dist/socket.io.js public"
   },
   "repository": {
     "type": "git",
@@ -19,6 +20,7 @@
   "dependencies": {
     "koa": "^2.5.1",
     "koa-router": "^7.4.0",
-    "koa-static": "^4.0.3"
+    "koa-static": "^4.0.3",
+    "socket.io": "^2.1.1"
   }
 }

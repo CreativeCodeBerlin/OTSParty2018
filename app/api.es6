@@ -2,8 +2,6 @@ const Router = require('koa-router');
 const path = require('path');
 const fs = require('fs');
 
-const projectFolder = path.join(global.__base, 'public', 'projects');
-
 var api = new Router({
    prefix: '/api'
 });
@@ -13,7 +11,7 @@ api.get('/pieces', async (ctx, next) => {
    var pieces = [];
 
    await new Promise(resolve => {
-      fs.readdir(projectFolder, (err, files) => {
+      fs.readdir(__sketchesDirectory, (err, files) => {
          pieces = files;
          resolve();
       });
@@ -28,7 +26,12 @@ api.get('/pieces', async (ctx, next) => {
 
 // set a piece for playing
 api.post('/play/:piecename', (ctx, next) => {
-   ctx.body = `API | play ${ctx.params.piecename}`;
+   // set a new piece
+   ctx.selectedPiece = ctx.params.piecename;
+
+   // call reload visuals and phones with a new piece
+   ctx.io.emit('reload', ctx.params.piecename);
+   //ctx.body = `API | play ${ctx.params.piecename}`;
    next();
 });
 

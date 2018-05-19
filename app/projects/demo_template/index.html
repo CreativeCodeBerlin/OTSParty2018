@@ -1,0 +1,31 @@
+<html>
+<head>
+   <title>OTSParty2018</title>
+   <style>
+      h1 {
+         padding: 20px;
+         border: solid 4px black;
+      }
+		img {
+			width: 200px;
+		}
+   </style>
+</head>
+<body>
+   <h1>Phone</h1>
+	<img src="./Berlin.jpg">
+
+   <script src="./common/socket.io.js"></script>
+   <script type="text/javascript">
+      var socket = io();
+
+      socket.on('connected', function(id) {
+         console.log('connected', id);
+      });
+
+      socket.on('reload', function(piecename) {
+         console.log('reload with a new piece called ', piecename);
+      });
+   </script>
+</body>
+</html>
