@@ -1,0 +1,24 @@
+{
+  "name": "ostparty2018",
+  "version": "1.0.0",
+  "description": "Code for the 2018 OpenTechSchool anniversary party at Spektrum Berlin",
+  "main": "app/server.js",
+  "scripts": {
+    "start": "node app/server.es6"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/CreativeCodeBerlin/OTSParty2018.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/CreativeCodeBerlin/OTSParty2018/issues"
+  },
+  "homepage": "https://github.com/CreativeCodeBerlin/OTSParty2018#readme",
+  "dependencies": {
+    "koa": "^2.5.1",
+    "koa-router": "^7.4.0",
+    "koa-static": "^4.0.3"
+  }
+}
