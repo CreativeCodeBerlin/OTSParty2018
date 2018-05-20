@@ -1,12 +1,14 @@
 const http = require('http');
 const Koa = require('koa');
-const serve = require('koa-static');
 const router = require('koa-router')();
+const send = require('koa-send');
 const socket = require('socket.io');
 const path = require('path');
 
 global.__base = path.join(__dirname, '..');
 global.__sketchesDirectory = path.join(__dirname, 'projects');
+//set the defaoult piece
+global.__selectedPiece = 'demo_template';
 
 const api = require('./api.es6');
 
@@ -16,10 +18,6 @@ const api = require('./api.es6');
  */
 const app = new Koa();
 
-//set the defaoult piece
-app.context.selectedPiece = 'demo_template';
-
-
 // logger
 app.use(async (ctx, next) => {
   const start = Date.now();
@@ -27,8 +25,12 @@ app.use(async (ctx, next) => {
   const ms = Date.now() - start;
   console.log(`${ctx.method} ${ctx.url} - ${ms}`);
   console.log(ctx);
-  console.log(path.join(__sketchesDirectory, ctx.selectedPiece));
+  console.log('path:', path.join(__sketchesDirectory, __selectedPiece));
+  console.log(' ---- ');
 });
+
+// use the API
+app.use(api);
 
 // redirect index
 //router.get('/', (ctx, next) => {
@@ -44,11 +46,18 @@ router.get('/common', async (ctx, next) => {
 
 app.use(router.routes());
 
-// use the API
-app.use(api);
-
 // main entry point
-app.use(serve( path.join(__sketchesDirectory, app.context.selectedPiece) ));
+//app.use(serve( path.join(__sketchesDirectory, app.context.selectedPiece) ));
+// TODO find a better way to separate the redirections from the api and routes
+// Maybe using a /sketch path 
+app.use(async (ctx) => {
+	console.log('Searching files on selected', __selectedPiece);
+	if (ctx.method != 'POST')
+	await send(ctx, ctx.path, {
+		root: path.join(__sketchesDirectory, __selectedPiece),
+		index: 'index.html'
+	});
+})
 
 const server = http.createServer(app.callback())
 

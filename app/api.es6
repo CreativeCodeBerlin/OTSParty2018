@@ -27,12 +27,16 @@ api.get('/pieces', async (ctx, next) => {
 // set a piece for playing
 api.post('/play/:piecename', (ctx, next) => {
    // set a new piece
-   ctx.selectedPiece = ctx.params.piecename;
+   __selectedPiece = ctx.params.piecename;
+   console.log('play new piece', ctx.selectedPiece);
 
    // call reload visuals and phones with a new piece
    ctx.io.emit('reload', ctx.params.piecename);
    //ctx.body = `API | play ${ctx.params.piecename}`;
    next();
+
+   ctx.body = `${__selectedPiece} selected`
+   ctx.status = 202;
 });
 
 module.exports = api.routes();
