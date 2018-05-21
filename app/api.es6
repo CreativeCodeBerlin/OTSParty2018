@@ -40,4 +40,3 @@ api.post('/play/:piecename', (ctx, next) => {
 });
 
 module.exports = api.routes();
-

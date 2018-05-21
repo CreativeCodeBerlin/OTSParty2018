@@ -1,0 +1,27 @@
+<html>
+<head>
+   <title>Control Panel</title>
+   <style>
+      h1 {
+         padding: 20px;
+         border: solid 4px black;
+      }
+		img {
+			width: 200px;
+		}
+   </style>
+</head>
+<body>
+   <h1>List of sketches</h1>
+
+   <script type="text/javascript">
+		var xmlHttp = new XMLHttpRequest();
+		xmlHttp.onreadystatechange = function() { 
+		if (xmlHttp.readyState == 4 && xmlHttp.status == 200)
+			console.log(xmlHttp.responseText);
+		}
+		xmlHttp.open("GET", '/api/pieces', true); // true for asynchronous 
+		xmlHttp.send(null);
+   </script>
+</body>
+</html>

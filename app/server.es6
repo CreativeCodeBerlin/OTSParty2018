@@ -11,6 +11,7 @@ global.__sketchesDirectory = path.join(__dirname, 'projects');
 global.__selectedPiece = 'demo_template';
 
 const api = require('./api.es6');
+const routeController = require('./routeController.es6');
 
 
 /*
@@ -24,40 +25,14 @@ app.use(async (ctx, next) => {
   await next();
   const ms = Date.now() - start;
   console.log(`${ctx.method} ${ctx.url} - ${ms}`);
-  console.log(ctx);
-  console.log('path:', path.join(__sketchesDirectory, __selectedPiece));
   console.log(' ---- ');
 });
 
 // use the API
 app.use(api);
 
-// redirect index
-//router.get('/', (ctx, next) => {
-	//ctx.redirect('/index.html');
-//});
-
-// common static assets and libraries
-router.get('/common', async (ctx, next) => {
-	console.log('========= serving', path.join(__base,'public') );
-	//serve( path.join(__base,'public') );
-	await next();
-});
-
-app.use(router.routes());
-
-// main entry point
-//app.use(serve( path.join(__sketchesDirectory, app.context.selectedPiece) ));
-// TODO find a better way to separate the redirections from the api and routes
-// Maybe using a /sketch path 
-app.use(async (ctx) => {
-	console.log('Searching files on selected', __selectedPiece);
-	if (ctx.method != 'POST')
-	await send(ctx, ctx.path, {
-		root: path.join(__sketchesDirectory, __selectedPiece),
-		index: 'index.html'
-	});
-})
+// use the routes
+app.use(routeController);
 
 const server = http.createServer(app.callback())
 

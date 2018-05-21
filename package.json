@@ -5,7 +5,9 @@
   "main": "app/server.js",
   "scripts": {
     "start": "node app/server.es6",
-    "postinstall": "mkdir public && cp node_modules/socket.io-client/dist/socket.io.js public"
+    "createPublic": "mkdir public && mkdir public/libs",
+    "copyLibs": "cp node_modules/socket.io-client/dist/socket.io.js public/libs/",
+    "postinstall": "npm run createPublic && npm run copyLibs"
   },
   "repository": {
     "type": "git",
