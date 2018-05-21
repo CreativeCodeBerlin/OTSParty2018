@@ -6,7 +6,7 @@ const socket = require('socket.io');
 const path = require('path');
 
 global.__base = path.join(__dirname, '..');
-global.__sketchesDirectory = path.join(__dirname, 'projects');
+global.__sketchesDirectory = path.join(__base, 'sketches');
 //set the defaoult piece
 global.__selectedPiece = 'demo_template';
 
