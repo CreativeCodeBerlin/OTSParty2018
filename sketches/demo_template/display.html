@@ -1,1 +1,94 @@
-<h1>Test Demo Template</h1>
+<html>
+<head>
+   <title>OTSParty2018 visuals</title>
+   <style>
+		body {
+			padding: 0;
+			margin: 0;
+			background-color: #111;
+      }
+
+      canvas {
+			position: absolute;
+			top: 0;
+			left: 0;
+      }
+   </style>
+</head>
+<body>
+   <script src="/libs/socket.io.js"></script>
+   <script src="/libs/jquery.js"></script>
+   <script src="/libs/p5.js"></script>
+
+   <script type="text/javascript">
+      var socket = io();
+
+      socket.on('connected', function(id) {
+         console.log('connected', id);
+      });
+
+		/* For switching into a new sketch, a reload has to be performed
+		 */
+      socket.on('reload', function(piecename) {
+			location.reload();
+      });
+
+
+      var phones = {};
+
+      // receive data from the phones
+      socket.on('dataChannel1', function(data) {
+         if (data.mousePosition != undefined) {
+            phones[data.id] = {
+               last: new Date().getTime(),
+               position: data.mousePosition
+            };
+         }
+      });
+
+      // init visuals
+		function setup() {
+			createCanvas( $(window).width(), $(window).height(), WEBGL);
+		}
+
+		function draw() {
+         background(0);
+
+         drawCubes();
+      }
+
+      // draw a cube at the position of each phone input
+      function drawCubes() {
+         push();
+         translate(-width/2, -height/2);
+
+         for(var id in phones) {
+            var phone = phones[id];
+            if (phone.position != undefined) {
+               push();
+
+               // fade cube out when is inactive
+               var timeDistance = new Date().getTime() - phone.last;
+               if (timeDistance < 2000) {
+                  fill(map( timeDistance, 0, 2000, 255, 0 ));
+                  stroke(0);
+
+                  translate(phone.position.x * width, phone.position.y * height);
+                  push();
+                  rotateX(frameCount * 0.01);
+                  box(50);
+                  pop();
+               }
+               else {
+                  phone.position = undefined;
+               }
+
+               pop();
+            }
+         }
+         pop();
+      }
+
+   </script>
+</body>
+</html>

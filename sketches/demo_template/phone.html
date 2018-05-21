@@ -2,30 +2,99 @@
 <head>
    <title>OTSParty2018</title>
    <style>
+		body {
+			padding: 0;
+			margin: 0;
+			background-color: #111;
+		}
+
       h1 {
-         padding: 20px;
-         border: solid 4px black;
+         padding: 10px 20px;
+         border: solid 4px white;
+			color: white;
       }
-		img {
-			width: 200px;
+
+		canvas {
+			position: absolute;
+			top: 0;
+			left: 0;
+			z-index: -1;
 		}
    </style>
 </head>
 <body>
-   <h1>Phone</h1>
-	<img src="./Berlin.jpg">
+   <h1>Touch</h1>
 
+	<!--
+		There are common libraries included on the project under the '/libs' path.
+		If you want, you can directly use them instead of include them on your project once again.
+		The projects counts with the following librarie:
+			/libs/socket.io.js | the client
+			/libs/jquery.js
+			/libs/p5.js | p5js + p5doom and p5sound
+	-->
    <script src="/libs/socket.io.js"></script>
+   <script src="/libs/jquery.js"></script>
+   <script src="/libs/p5.js"></script>
+
+	<!--
+		The sketch runs in his own directory.
+		All the files and assets can be called with a relative path and loaded also from subdirectories.
+			mySketch
+				|- phone.html
+				|- display.html
+				|- scripts
+				|	|- myVisuals.js
+				|	|- phoneInteraction.js
+				|- styles
+				|	|- mainStyle.css
+				|- images
+				|	|- background.png
+	-->
    <script type="text/javascript">
+		// Manage sockets
       var socket = io();
 
       socket.on('connected', function(id) {
-         console.log('connected', id);
+         console.log('connected with id:', id);
       });
 
+		/* For switching into a new sketch, a reload has to be performed
+		 */
       socket.on('reload', function(piecename) {
-         console.log('reload with a new piece called ', piecename);
+			location.reload();
       });
+		
+		/* There are 3 channels to send data through sockets.
+		 * You can use them as you want.
+		 * For example, you can use one channel to send sensor data from the phone to the visuals,
+		 * another channel to trigger events and the last one for communicating with other phones
+		 * on the network.
+		 */
+
+		function setup() {
+			createCanvas( $(window).width(), $(window).height() );
+		}
+
+		function draw() {
+			background(17);
+			noStroke();
+			fill(255);
+
+			if (mouseIsPressed) {
+				ellipse(mouseX, mouseY, 80, 80);
+
+				var normalizedX, normalizedY;
+				normalizedX = mouseX / width;
+				normalizedY = mouseY / height;
+
+				// send the inut data to the display using dataChannel1
+				socket.emit('dataChannel1', {
+					id: socket.id,
+					mousePosition: {x: normalizedX, y: normalizedY} }
+				);
+			}
+		}
    </script>
 </body>
 </html>

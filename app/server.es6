@@ -41,20 +41,34 @@ const server = http.createServer(app.callback())
  */
 const io = socket(server);
 
-// pass socketio to the koa pp contect
+// pass socketio to the koa context
 app.context.io = io;
 
-// connection
 io.on('connection', socket => {
-	// TODO get uset ID
-	//console.log('a user connected');
+   console.log(`socket connected | id ${socket.id}`);
 
-	socket.emit('connected', '007');
+	socket.emit('connected', socket.id);
 
+
+   // sketch datta channels
 	socket.on('dataChannel1', msg => {
 		socket.broadcast.emit('dataChannel1', msg);
 	});
 
+	socket.on('dataChannel2', msg => {
+		socket.broadcast.emit('dataChannel2', msg);
+	});
+
+	socket.on('dataChannel3', msg => {
+		socket.broadcast.emit('dataChannel3', msg);
+	});
+
 });
 
-server.listen(3000)
+// id generator
+var custom_id = 0
+io.engine.generateId = (req) => {
+  return "OTS:id:" + (''+custom_id++).padStart(4, "0");
+}
+
+server.listen(3000);

@@ -24,12 +24,9 @@ routeController.get('/control', (ctx, next) => {
 routeController.get('/sketch/*', async (ctx, next) => {
    // substrack /sketch from path
    var filepath = path.join('/', path.relative('/sketch',ctx.path));
-   //console.log('/Sketch route path', ctx.path);
-   //console.log('/Sketch route file:', filepath);
 
    await send(ctx, filepath, {
       root: path.join(__sketchesDirectory, __selectedPiece)
-      //index: 'index.html'
    });
    next();
 });
@@ -37,8 +34,6 @@ routeController.get('/sketch/*', async (ctx, next) => {
 routeController.get('/control/*', async (ctx, next) => {
    // substrack /control from path
    var filepath = path.join('/', path.relative('/control',ctx.path));
-   //console.log('/control route path', ctx.path);
-   //console.log('/ontrol route file:', filepath);
 
    await send(ctx, filepath, {
 		root: path.join(__dirname, 'control'),
@@ -51,11 +46,9 @@ routeController.get('/control/*', async (ctx, next) => {
 routeController.get('/libs/*', async (ctx, next) => {
    // substrack /common from path
    var filepath = path.join('/', path.relative('/libs',ctx.path));
-   //console.log('/libs route path', ctx.path);
-   //console.log('/libs route file:', filepath);
 
    await send(ctx, filepath, {
-		root: path.join(__base, 'public', 'libs')
+		root: path.join(__base, 'libs')
    });
    next();
 });
