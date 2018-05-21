@@ -6,8 +6,19 @@ var routeController = new Router();
 
 // redirect to sketch by default
 routeController.get('/', (ctx, next) => {
-	ctx.redirect('/sketch/');
+	ctx.redirect('/sketch/phone.html');
 });
+
+// redirect to the visuals
+routeController.get('/display', (ctx, next) => {
+	ctx.redirect('/sketch/display.html');
+});
+
+// redirect to control panel
+routeController.get('/control', (ctx, next) => {
+	ctx.redirect('/control/index.html');
+});
+
 
 // main entry for sketches
 routeController.get('/sketch/*', async (ctx, next) => {
@@ -17,8 +28,8 @@ routeController.get('/sketch/*', async (ctx, next) => {
    //console.log('/Sketch route file:', filepath);
 
    await send(ctx, filepath, {
-      root: path.join(__sketchesDirectory, __selectedPiece),
-      index: 'index.html'
+      root: path.join(__sketchesDirectory, __selectedPiece)
+      //index: 'index.html'
    });
    next();
 });
