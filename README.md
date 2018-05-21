@@ -28,13 +28,13 @@ The sketch runs in his own directory. All the files and assets can be called wit
 mySketch
   |- phone.html
   |- display.html
-  - scripts
-  |		|- myVisuals.js
-  |		|- phoneInteraction.js
+  |- scripts
+  |	|- myVisuals.js
+  |	|- phoneInteraction.js
   |- styles
-  |		|- mainStyle.css
+  |	|- mainStyle.css
   |- images
-  |		|- background.png
+  |	|- background.png
 ```
 
 
