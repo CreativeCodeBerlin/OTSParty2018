@@ -17,8 +17,15 @@ api.get('/pieces', async (ctx, next) => {
       });
    });
 
+	var result = {};
+	for (let id in pieces) {
+		var name = pieces[id];
+		result[id] = name;
+	}
+	result['active'] = __selectedPiece;
+
    ctx.status = 200;
-   ctx.body = JSON.stringify(pieces);
+   ctx.body = result;
 
    next();
 
@@ -35,7 +42,12 @@ api.post('/play/:piecename', (ctx, next) => {
 
    next();
 
-   ctx.body = `${__selectedPiece} selected`
+   ctx.body = {
+		status: 202,
+		msg: `Sketch ${__selectedPiece} selected`,
+		sketch: __selectedPiece
+	};
+
    ctx.status = 202;
 });
 

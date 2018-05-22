@@ -1,27 +1,84 @@
 <html>
 <head>
    <title>Control Panel</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
    <style>
+		body {
+			padding: 0;
+			margin: 0;
+			background-color: #111;
+		}
+
       h1 {
-         padding: 20px;
-         border: solid 4px black;
+         padding: 10px 20px;
+         border: solid 4px white;
+			color: white;
       }
-		img {
-			width: 200px;
+
+		#sketches {
+			padding: 0;
+			margin: 0;
+			list-style: none;
+		}
+
+		#sketches li {
+			padding: 20px;
+			margin: 0px;
+			color: white;
+			font-size: 20px;
+		}
+
+		.sketchbtn {
+			padding: 20px;
+			display: list-item;
+			border: solid 1px #555;
+		}
+
+		.sketchbtn.active {
+			background-color: white;
+			color: black;
 		}
    </style>
 </head>
 <body>
    <h1>List of sketches</h1>
+	<ul id="sketches">
+	</ul>
 
+   <script src="/libs/jquery.js"></script>
    <script type="text/javascript">
-		var xmlHttp = new XMLHttpRequest();
-		xmlHttp.onreadystatechange = function() { 
-		if (xmlHttp.readyState == 4 && xmlHttp.status == 200)
-			console.log(xmlHttp.responseText);
+		$.get("/api/pieces", function(data, status) {
+			sketches = data;
+			var list = $('#sketches');
+
+			for (var id in sketches) {
+				var sketch = sketches[id];
+				if (id != 'active') {
+					var li = $('<li/>')
+						.appendTo(list);
+
+					li.append(
+						$('<a/>')
+						.addClass('sketchbtn')
+						.addClass(sketch)
+						.attr('sketchName', sketch)
+						.text(sketch)
+						.click(postSketch)
+					);
+				}
+			}
+
+			$('.'+data.active).addClass('active');
+		});
+
+		function postSketch(event) {
+			var sketchName = $(event.target).attr('sketchname');
+			$.post("/api/play/" + sketchName, {}, function(data, status){
+				console.log(data, status);
+				$('.active').removeClass('active');
+				$('.'+data.sketch).addClass('active');
+			});
 		}
-		xmlHttp.open("GET", '/api/pieces', true); // true for asynchronous 
-		xmlHttp.send(null);
    </script>
 </body>
 </html>
