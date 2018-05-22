@@ -17,6 +17,18 @@ $ npm start
 
 
 
+#### Entry points
+
+* `/`
+  *The default one. Is going to be requested by the phones*
+
+* `/display`
+  *To open the visualization. Requested by the laptop running at the beamer.*
+
+* `/control`
+
+  *For switching between sketches*
+
 #### Sketches
 
 All sketches are allocated under the **sketches** folder at the root directory of the project.
