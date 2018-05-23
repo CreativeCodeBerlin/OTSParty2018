@@ -48,8 +48,12 @@
 
       // init visuals
 		function setup() {
-			createCanvas( $(window).width(), $(window).height(), WEBGL);
+			createCanvas(windowWidth, windowHeight, WEBGL);
 		}
+    
+    function windowResized() {
+      resizeCanvas(windowWidth, windowHeight);
+    }
 
 		function draw() {
          background(0);
@@ -72,12 +76,9 @@
                if (timeDistance < 2000) {
                   fill(map( timeDistance, 0, 2000, 255, 0 ));
                   stroke(0);
-
                   translate(phone.position.x * width, phone.position.y * height);
-                  push();
                   rotateX(frameCount * 0.01);
                   box(50);
-                  pop();
                }
                else {
                   phone.position = undefined;
