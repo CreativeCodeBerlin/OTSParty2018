@@ -50,7 +50,7 @@ io.on('connection', socket => {
 	socket.emit('connected', socket.id);
 
 
-   // sketch datta channels
+   // sketch data channels
 	socket.on('dataChannel1', msg => {
 		socket.broadcast.emit('dataChannel1', msg);
 	});
@@ -71,4 +71,6 @@ io.engine.generateId = (req) => {
   return "OTS:id:" + (''+custom_id++).padStart(4, "0");
 }
 
-server.listen(3000);
+var port = 3000;
+console.log('listening on port', port);
+server.listen(port);
