@@ -62,9 +62,20 @@
 		/* For switching into a new sketch, a reload has to be performed
 		 */
       socket.on('reload', function(piecename) {
-			location.reload();
+			  location.reload();
       });
-		
+
+      var phones = {};
+
+      socket.on('dataChannel1', function(data) {
+         if (data.mousePosition != undefined) {
+            phones[data.id] = {
+               last: new Date().getTime(),
+               position: data.mousePosition
+            };
+         }
+      });
+
 		/* There are 3 channels to send data through sockets.
 		 * You can use them as you want.
 		 * For example, you can use one channel to send sensor data from the phone to the visuals,
@@ -98,7 +109,28 @@
 					mousePosition: {x: normalizedX, y: normalizedY} }
 				);
 			}
+      
+      drawPlayers();
 		}
+    
+    function drawPlayers() {
+      for(var id in phones) {
+        var phone = phones[id];
+        if (phone.position != undefined) {
+          // fade out when inactive
+          var timeDistance = new Date().getTime() - phone.last;
+          if (timeDistance < 2000) {
+            fill(map( timeDistance, 0, 2000, 255, 0 ));
+            stroke(0);
+
+            ellipse(phone.position.x * width, phone.position.y * height, 10, 10);
+          }
+          else {
+            phone.position = undefined;
+          }
+        }
+      }
+    }
    </script>
 </body>
 </html>
