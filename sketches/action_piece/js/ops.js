@@ -4,8 +4,8 @@ var Ops=Ops || {};
 Ops.Ui=Ops.Ui || {};
 Ops.Gl=Ops.Gl || {};
 Ops.Anim=Ops.Anim || {};
-Ops.Vars=Ops.Vars || {};
 Ops.Math=Ops.Math || {};
+Ops.Vars=Ops.Vars || {};
 Ops.Array=Ops.Array || {};
 Ops.Patch=Ops.Patch || {};
 Ops.Value=Ops.Value || {};
@@ -14,6 +14,7 @@ Ops.Gl.Shader=Ops.Gl.Shader || {};
 Ops.Gl.Meshes=Ops.Gl.Meshes || {};
 Ops.Gl.Matrix=Ops.Gl.Matrix || {};
 Ops.Gl.Geometry=Ops.Gl.Geometry || {};
+Ops.Math.Compare=Ops.Math.Compare || {};
 
 //----------------
 
@@ -4291,192 +4292,6 @@ Ops.Vars.SetVariableArray.prototype = new CABLES.Op();
 
 // **************************************************************
 // 
-// Ops.Anim.RandomAnim
-// 
-// **************************************************************
-
-Ops.Anim.RandomAnim = function()
-{
-Op.apply(this, arguments);
-var op=this;
-var attachments={};
-
-var exe=op.inFunction("exe");
-var min=op.inValue("min",0);
-var max=op.inValue("max",1);
-
-var pause=op.inValue("pause between",0);
-var seed=op.inValue("random seed",0);
-
-var duration=op.inValue("duration",0.5);
-
-var result=op.outValue("result");
-
-var anim=new CABLES.TL.Anim();
-anim.createPort(op,"easing",reinit);
-
-reinit();
-
-min.onChange=reinit;
-max.onChange=reinit;
-pause.onChange=reinit;
-seed.onChange=reinit;
-duration.onChange=reinit;
-
-function getRandom()
-{
-    var minVal = parseFloat( min.get() );
-    var maxVal = parseFloat( max.get() );
-    return Math.seededRandom() * ( maxVal - minVal ) + minVal;
-}
-
-function reinit()
-{
-    Math.randomSeed=seed.get();
-    init(getRandom());
-}
-
-function init(v)
-{
-    anim.clear();
-    
-    anim.setValue(op.patch.freeTimer.get(), v);
-    if(pause.get()!=0.0)anim.setValue(op.patch.freeTimer.get()+pause.get(), v);
-    
-    anim.setValue(parseFloat(duration.get())+op.patch.freeTimer.get()+pause.get(), getRandom());
-}
-
-
-exe.onTriggered=function()
-{
-    if(op.instanced(exe))return;
-
-
-    Math.randomSeed=seed.get();
-
-// +offset.get())%duration.get()
-    var t=op.patch.freeTimer.get();
-    var v=anim.getValue(t);
-    if(anim.hasEnded(t))
-    {
-        anim.clear();
-        init(v);
-    }
-    result.set(v);
-};
-
-
-
-};
-
-Ops.Anim.RandomAnim.prototype = new CABLES.Op();
-
-//----------------
-
-
-
-// **************************************************************
-// 
-// Ops.Array.Array
-// 
-// **************************************************************
-
-Ops.Array.Array = function()
-{
-Op.apply(this, arguments);
-var op=this;
-var attachments={};
-var inLength=op.inValueInt("Length",100);
-var inDefaultValue=op.inValueInt("DefaultValue");
-var inReset=op.inFunctionButton("Reset");
-var outArr=op.outArray("Array");
-
-var arr=[];
-inReset.onTriggered=reset;
-inLength.onChange=reset;
-inDefaultValue.onChange=reset;
-reset();
-
-function reset()
-{
-    outArr.set(arr);
-    var l=parseInt(inLength.get(),10);
-    if(l<0)return;
-    
-    arr.length=l;
-    
-    for(var i=0;i<l;i++)
-    {
-        arr[i]=inDefaultValue.get();
-    }
-    outArr.set(null);
-    outArr.set(arr);
-}
-
-
-
-
-};
-
-Ops.Array.Array.prototype = new CABLES.Op();
-
-//----------------
-
-
-
-// **************************************************************
-// 
-// Ops.Array.ArraySetValue3x
-// 
-// **************************************************************
-
-Ops.Array.ArraySetValue3x = function()
-{
-Op.apply(this, arguments);
-var op=this;
-var attachments={};
-
-var exe=op.inFunctionButton("exe");
-
-var array=op.addInPort(new Port(op, "array",OP_PORT_TYPE_ARRAY));
-var index=op.addInPort(new Port(op, "index",OP_PORT_TYPE_VALUE,{type:'int'}));
-var value1=op.addInPort(new Port(op, "Value 1",OP_PORT_TYPE_VALUE));
-var value2=op.addInPort(new Port(op, "Value 2",OP_PORT_TYPE_VALUE));
-var value3=op.addInPort(new Port(op, "Value 3",OP_PORT_TYPE_VALUE));
-var values=op.addOutPort(new Port(op, "values",OP_PORT_TYPE_ARRAY));
-
-function updateIndex()
-{
-    if(exe.isLinked())return;    
-    update();
-}
-function update()
-{
-    if(!array.get())return;
-    array.get()[index.get()*3+0]=value1.get();
-    array.get()[index.get()*3+1]=value2.get();
-    array.get()[index.get()*3+2]=value3.get();
-
-    values.set(null);
-    values.set(array.get());
-}
-
-// index.onChange=updateIndex;
-// array.onChange=updateIndex;
-// value.onChange=update;
-exe.onTriggered=update;
-
-
-};
-
-Ops.Array.ArraySetValue3x.prototype = new CABLES.Op();
-
-//----------------
-
-
-
-// **************************************************************
-// 
 // Ops.Gl.Geometry.TransformGeometry
 // 
 // **************************************************************
@@ -4579,6 +4394,387 @@ function update()
 };
 
 Ops.Gl.Geometry.TransformGeometry.prototype = new CABLES.Op();
+
+//----------------
+
+
+
+// **************************************************************
+// 
+// Ops.Value.DelayedValue
+// 
+// **************************************************************
+
+Ops.Value.DelayedValue = function()
+{
+Op.apply(this, arguments);
+var op=this;
+var attachments={};
+
+var exe=op.inFunction("Update");
+var v=op.inValue("Value",0);
+var delay=op.inValue("Delay",0.5);
+var result=op.outValue("Result",0);
+var clear=op.inValueBool("Clear on Change",true);
+
+var anim=new CABLES.TL.Anim();
+anim.createPort(op,"easing",function(){}).set("absolute");
+
+exe.onTriggered=function()
+{
+    result.set(anim.getValue( op.patch.freeTimer.get() )||0);
+};
+
+v.onChange=function()
+{
+    var current=anim.getValue( op.patch.freeTimer.get() );
+    var t=op.patch.freeTimer.get();
+
+    if(clear.get()) anim.clear(t);
+
+    anim.setValue(t+delay.get(),v.get());
+};
+
+};
+
+Ops.Value.DelayedValue.prototype = new CABLES.Op();
+
+//----------------
+
+
+
+// **************************************************************
+// 
+// Ops.Math.Incrementor
+// 
+// **************************************************************
+
+Ops.Math.Incrementor = function()
+{
+Op.apply(this, arguments);
+var op=this;
+var attachments={};
+var increment = op.inFunctionButton("Increment");
+var decrement = op.inFunctionButton("Decrement");
+var inLength=op.addInPort(new Port(op,"Length",OP_PORT_TYPE_VALUE));
+// var reset=op.addInPort(new Port(op,"Reset",OP_PORT_TYPE_FUNCTION));
+var reset=op.inFunctionButton("Reset");
+
+
+var inMode=op.inValueSelect("Mode",["Rewind","Stop at Max"]);
+
+var value=op.addOutPort(new Port(op,"Value",OP_PORT_TYPE_VALUE));
+
+var outRestarted=op.outFunction("Restarted");
+
+value.ignoreValueSerialize=true;
+inLength.set(10);
+var val=0;
+value.set(0);
+
+inLength.onTriggered=reset;
+reset.onTriggered=doReset;
+
+var MODE_REWIND=0;
+var MODE_STOP=1;
+
+var mode=MODE_REWIND;
+
+inMode.onChange=function()
+{
+    if(inMode.get()=="Rewind")
+    {
+        mode=MODE_REWIND;
+    }
+    if(inMode.get()=="Stop at Max")
+    {
+        mode=MODE_STOP;
+    }
+
+    
+};
+
+function doReset()
+{
+    value.set(null);
+    val=0;
+    value.set(val);
+    outRestarted.trigger();
+}
+
+decrement.onTriggered=function()
+{
+    val--;
+    if(mode==MODE_REWIND && val<0)val=inLength.get()-1;
+    if(mode==MODE_STOP && val<0)val=0;
+
+    value.set(val);
+};
+
+increment.onTriggered=function()
+{
+    val++;
+    if(mode==MODE_REWIND && val>=inLength.get())
+    {
+        val=0;
+        outRestarted.trigger();
+    }
+    if(mode==MODE_STOP && val>=inLength.get())val=inLength.get()-1;
+    
+    value.set(val);
+};
+
+
+};
+
+Ops.Math.Incrementor.prototype = new CABLES.Op();
+
+//----------------
+
+
+
+// **************************************************************
+// 
+// Ops.Math.Compare.IfBetweenThen
+// 
+// **************************************************************
+
+Ops.Math.Compare.IfBetweenThen = function()
+{
+Op.apply(this, arguments);
+var op=this;
+var attachments={};
+var exe=op.inFunction("exe");
+
+var number=op.inValue("number",0);
+var min=op.inValue("min",0);
+var max=op.inValue("max",1);
+
+var triggerThen=op.outFunction('then');
+var triggerElse=op.outFunction('else');
+var outBetween=op.outValue("bs between");
+
+exe.onTriggered=function()
+{
+    if(number.get()>=min.get() && number.get()<max.get())
+    {
+        outBetween.set(true);
+        triggerThen.trigger();
+    }
+    else
+    {
+        outBetween.set(false);
+        triggerElse.trigger();
+    }
+};
+
+
+};
+
+Ops.Math.Compare.IfBetweenThen.prototype = new CABLES.Op();
+
+//----------------
+
+
+
+// **************************************************************
+// 
+// Ops.Ui.Comment
+// 
+// **************************************************************
+
+Ops.Ui.Comment = function()
+{
+Op.apply(this, arguments);
+var op=this;
+var attachments={};
+op.name=" ";
+op.inTitle=op.inValueString("title",' ');
+op.text=op.inValueText("text");
+
+// op.inTitle.set('.');
+op.text.set('...');
+
+function update()
+{
+    if(CABLES.UI)
+    {
+        var uiOp=gui.patch().getUiOp(op);
+        // console.log(uiOp);
+        op.name=op.inTitle.get();
+        op.uiAttr('title',op.inTitle.get());
+        uiOp.oprect.updateComment();
+    }
+}
+
+op.inTitle.onChange=update;
+op.text.onChange=update;
+op.onLoaded=update;
+
+
+};
+
+Ops.Ui.Comment.prototype = new CABLES.Op();
+
+//----------------
+
+
+
+// **************************************************************
+// 
+// Ops.Anim.SimpleAnim
+// 
+// **************************************************************
+
+Ops.Anim.SimpleAnim = function()
+{
+Op.apply(this, arguments);
+var op=this;
+var attachments={};
+
+var exe=op.addInPort(new Port(op,"exe",OP_PORT_TYPE_FUNCTION));
+
+var reset=op.inFunctionButton("reset");
+var rewind=op.inFunctionButton("rewind");
+
+var inStart=op.addInPort(new Port(op,"start"));
+var inEnd=op.addInPort(new Port(op,"end"));
+var duration=op.addInPort(new Port(op,"duration"));
+
+var loop=op.addInPort(new Port(op,"loop",OP_PORT_TYPE_VALUE,{display:"bool"}));
+var waitForReset=op.inValueBool("Wait for Reset",true);
+
+var next=op.outFunction("Next");
+var result=op.addOutPort(new Port(op,"result"));
+var finished=op.addOutPort(new Port(op,"finished",OP_PORT_TYPE_VALUE));
+var finishedTrigger=op.outFunction("Finished Trigger");
+
+var resetted=false;
+
+
+
+var anim=new CABLES.TL.Anim();
+
+anim.createPort(op,"easing",init);
+
+var currentEasing=-1;
+function init()
+{
+    if(anim.keys.length!=3)
+    {
+        anim.setValue(0,0);
+        anim.setValue(1,0);
+        anim.setValue(2,0);
+    }
+    
+    anim.keys[0].time=CABLES.now()/1000.0;
+    anim.keys[0].value=inStart.get();
+    if(anim.defaultEasing!=currentEasing) anim.keys[0].setEasing(anim.defaultEasing);
+
+    anim.keys[1].time=duration.get()+CABLES.now()/1000.0;
+    anim.keys[1].value=inEnd.get();
+    
+    if(anim.defaultEasing!=currentEasing) anim.keys[1].setEasing(anim.defaultEasing);
+
+    anim.loop=loop.get();
+    if(anim.loop)
+    {
+        anim.keys[2].time=(2.0*duration.get())+CABLES.now()/1000.0;
+        anim.keys[2].value=inStart.get();
+        if(anim.defaultEasing!=currentEasing) anim.keys[2].setEasing(anim.defaultEasing);
+    }
+    else
+    {
+        anim.keys[2].time=anim.keys[1].time;
+        anim.keys[2].value=anim.keys[1].value;
+        if(anim.defaultEasing!=currentEasing) anim.keys[2].setEasing(anim.defaultEasing);
+    }
+    finished.set(false);
+
+    currentEasing=anim.defaultEasing;
+}
+
+loop.onValueChanged=init;
+reset.onTriggered=function()
+{
+    resetted=true;
+    init();
+};
+
+rewind.onTriggered=function()
+{
+    anim.keys[0].time=CABLES.now()/1000.0;
+    anim.keys[0].value=inStart.get();
+
+    anim.keys[1].time=CABLES.now()/1000.0;
+    anim.keys[1].value=inStart.get();
+
+    anim.keys[2].time=CABLES.now()/1000.0;
+    anim.keys[2].value=inStart.get();
+    
+    result.set(inStart.get());
+};
+
+exe.onTriggered=function()
+{
+    if(waitForReset.get() && !resetted) 
+    {
+        result.set(inStart.get());
+        return;
+    }
+    var t=CABLES.now()/1000;
+    var v=anim.getValue(t);
+    result.set(v);
+    if(anim.hasEnded(t))
+    {
+        if(!finished.get()) finishedTrigger.trigger();
+        finished.set(true);
+    }
+    
+    next.trigger();
+};
+
+inStart.set(0.0);
+inEnd.set(1.0);
+duration.set(0.5);
+init();
+
+duration.onChange=init;
+
+
+};
+
+Ops.Anim.SimpleAnim.prototype = new CABLES.Op();
+
+//----------------
+
+
+
+// **************************************************************
+// 
+// Ops.Trigger.TriggerExtender
+// 
+// **************************************************************
+
+Ops.Trigger.TriggerExtender = function()
+{
+Op.apply(this, arguments);
+var op=this;
+var attachments={};
+// inputs
+var inTriggerPort = op.inFunctionButton('Execute');
+
+// outputs
+var outTriggerPort = op.outFunction('Next');
+
+// trigger listener
+inTriggerPort.onTriggered = function() {
+    outTriggerPort.trigger();
+};
+
+};
+
+Ops.Trigger.TriggerExtender.prototype = new CABLES.Op();
 
 //----------------
 
