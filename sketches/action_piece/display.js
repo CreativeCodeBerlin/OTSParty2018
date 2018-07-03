@@ -16,7 +16,10 @@ var phonePoints = [];
 // get phones
 socket.on('dataChannel3', function(data) {
    if (data.topic == 'request') {
-      phones[data.id] = {id: data.id}
+      phones[data.id] = {
+         id: data.id,
+         currentPoint: [0,0,0]
+      };
       if (phonePoints.length <= 8) {
          phonePoints.push( phones[data.id].id );
          socket.emit('dataChannel3', {
@@ -33,7 +36,10 @@ socket.on('dataChannel3', function(data) {
 
 socket.on('dataChannel1', function(data) {
    if (data.topic == 'point' && phones[data.id] != undefined) {
-      phones[data.id].point = data.point
+      phones[data.id].point = [
+         data.point.x*2,
+         data.point.y*2
+      ];
       //CABLES.patch.setVariable("pointIndex", 0);
       //CABLES.patch.setVariable("pointPosition", [data.point.x, data.point.y, Math.sin(new Date().getTime()/1000.0)]);
       //CABLES.patch.config.setPoint();
@@ -56,18 +62,30 @@ function patchInitialized() {
          var id = phonePoints[i];
          var phone = phones[id];
          if (phone.point != undefined) {
-            var point = [phone.point.x, phone.point.y];
+            // interpolate for a smoth movment
+            var point = phone.point;
             point[2] = Math.sin(new Date().getTime()/1000.0);
+
+            phones[id].currentPoint = interpolate(phones[id].currentPoint, point, .3);
+
             CABLES.patch.setVariable("pointIndex", i);
-            CABLES.patch.setVariable("pointPosition", point);
+            CABLES.patch.setVariable("pointPosition", phones[id].currentPoint);
             CABLES.patch.config.setPoint();
+            console.log('id: ' + i + ' | ' + phones[id].currentPoint[0])
          }
       }
-   }, 1);
+   }, 2);
 }
 
 function patchFinishedLoading() {
    // The patch is ready now, all assets have been loaded
+}
+
+function interpolate(a, b, frac) {
+    var nx = a[0] + (b[0] - a[0]) * frac;
+    var ny = a[1] + (b[1] - a[1]) * frac;
+    var nz = a[2] + (b[2] - a[2]) * frac;
+    return [nx, ny, nz];
 }
 
 
