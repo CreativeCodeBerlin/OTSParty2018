@@ -5,9 +5,16 @@
    <meta name="viewport" content="width=device-width, initial-       scale=1.0, user-scalable=no">
 </head>
 <body>
-   <h1>Phone</h1>
-   <p id="val"></p>
-   <div id="a"></div>
+   <div class="screen form" style="display: none;">
+      <button class="btnStart">Start</button>
+   </div>
+   <div class="screen busy" style="display: none;">
+      <h3>Busy</h3>
+   </div>
+   <div class="screen play" style="display: none;">
+      <p id="val"></p>
+      <div id="a"></div>
+   </div>
    <script src="/libs/socket.io.js"></script>
    <script src="/libs/jquery.js"></script>
    <script src="libs/NoSleep.min.js"></script>

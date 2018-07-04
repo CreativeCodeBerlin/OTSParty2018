@@ -9,12 +9,7 @@ socket.on('connected', function(id) {
    config.socket.id = id;
    console.log('connected with id:', id);
 
-
-   // request access
-   socket.emit('dataChannel3', {
-      'topic': 'request',
-      'id': config.socket.id
-   });
+   updateUI();
 });
 
 /* For switching into a new sketch, a reload has to be performed */
@@ -32,9 +27,12 @@ socket.on('dataChannel3', function(data) {
          case 'busy':
             config.status = 'busy';
             break;
-         default:
-            updateUI();
+         case 'disconnected':
+            location.reload();
+            break;
       }
+
+   updateUI();
 });
 
 // acelerometer sensor
@@ -96,10 +94,19 @@ function angleDistance(alpha, beta) {
 }
 
 function updateUI() {
-   // TODO: update UI
-   //$('#block').hide();
-   //$('#vertex').hide();
-   //$('#camera').hide();
+   $('.screen').hide();
+
+   switch(config.status) {
+      case 'waiting':
+         $('.form').show();
+         break;
+      case 'busy':
+         $('.busy').show();
+         break;
+      case 'accepted':
+         $('.play').show();
+         break;
+   }
 }
 
 function pushPointData(point) {
@@ -115,10 +122,15 @@ function pushPointData(point) {
 // Enable wake lock
 var noSleep = new NoSleep();
 
-function enableNoSleep() {
-  noSleep.enable();
-  document.removeEventListener('click', enableNoSleep, false);
+function sendRequest() {
+   // request access
+   socket.emit('dataChannel3', {
+      'topic': 'request',
+      'id': config.socket.id
+   });
+
+   noSleep.enable();
+   $('.btnStart').unbind();
 }
 
-document.addEventListener('click', enableNoSleep, false);
-
+$('.btnStart').on('click', sendRequest);
