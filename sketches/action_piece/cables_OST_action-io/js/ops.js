@@ -3,18 +3,21 @@
 var Ops=Ops || {};
 Ops.Ui=Ops.Ui || {};
 Ops.Gl=Ops.Gl || {};
+Ops.User=Ops.User || {};
 Ops.Anim=Ops.Anim || {};
-Ops.Math=Ops.Math || {};
 Ops.Vars=Ops.Vars || {};
+Ops.Math=Ops.Math || {};
 Ops.Array=Ops.Array || {};
 Ops.Patch=Ops.Patch || {};
+Ops.Color=Ops.Color || {};
 Ops.Value=Ops.Value || {};
 Ops.Trigger=Ops.Trigger || {};
-Ops.Gl.Shader=Ops.Gl.Shader || {};
-Ops.Gl.Meshes=Ops.Gl.Meshes || {};
+Ops.Boolean=Ops.Boolean || {};
 Ops.Gl.Matrix=Ops.Gl.Matrix || {};
+Ops.Gl.Meshes=Ops.Gl.Meshes || {};
+Ops.Gl.Shader=Ops.Gl.Shader || {};
+Ops.User.action=Ops.User.action || {};
 Ops.Gl.Geometry=Ops.Gl.Geometry || {};
-Ops.Math.Compare=Ops.Math.Compare || {};
 
 //----------------
 
@@ -1840,386 +1843,6 @@ function update()
 };
 
 Ops.Array.ArrayGetValue3x.prototype = new CABLES.Op();
-
-//----------------
-
-
-
-// **************************************************************
-// 
-// Ops.Gl.Matrix.OrbitControls
-// 
-// **************************************************************
-
-Ops.Gl.Matrix.OrbitControls = function()
-{
-Op.apply(this, arguments);
-var op=this;
-var attachments={};
-const render=op.addInPort(new Port(op,"render",OP_PORT_TYPE_FUNCTION));
-const minDist=op.addInPort(new Port(op,"min distance",OP_PORT_TYPE_VALUE));
-const maxDist=op.addInPort(new Port(op,"max distance",OP_PORT_TYPE_VALUE));
-const initialAxis=op.addInPort(new Port(op,"initial axis y",OP_PORT_TYPE_VALUE,{display:'range'}));
-const initialX=op.addInPort(new Port(op,"initial axis x",OP_PORT_TYPE_VALUE,{display:'range'}));
-const initialRadius=op.inValue("initial radius",0);
-
-const mul=op.addInPort(new Port(op,"mul",OP_PORT_TYPE_VALUE));
-
-const smoothness=op.inValueSlider("Smoothness",1.0);
-const restricted=op.addInPort(new Port(op,"restricted",OP_PORT_TYPE_VALUE,{display:'bool'}));
-
-const active=op.inValueBool("Active",true);
-
-const inReset=op.inFunctionButton("Reset");
-
-const allowPanning=op.inValueBool("Allow Panning",true);
-const allowZooming=op.inValueBool("Allow Zooming",true);
-const allowRotation=op.inValueBool("Allow Rotation",true);
-const pointerLock=op.inValueBool("Pointerlock",false);
-
-const speedX=op.inValue("Speed X",1);
-const speedY=op.inValue("Speed Y",1);
-
-const trigger=op.addOutPort(new Port(op,"trigger",OP_PORT_TYPE_FUNCTION));
-const outRadius=op.addOutPort(new Port(op,"radius",OP_PORT_TYPE_VALUE));
-const outYDeg=op.addOutPort(new Port(op,"Rot Y",OP_PORT_TYPE_VALUE));
-const outXDeg=op.addOutPort(new Port(op,"Rot X",OP_PORT_TYPE_VALUE));
-
-restricted.set(true);
-mul.set(1);
-minDist.set(0.05);
-maxDist.set(99999);
-
-inReset.onTriggered=reset;
-
-var cgl=op.patch.cgl;
-var eye=vec3.create();
-var vUp=vec3.create();
-var vCenter=vec3.create();
-var viewMatrix=mat4.create();
-var vOffset=vec3.create();
-
-initialAxis.set(0.5);
-
-
-var mouseDown=false;
-var radius=5;
-outRadius.set(radius);
-
-var lastMouseX=0,lastMouseY=0;
-var percX=0,percY=0;
-
-
-vec3.set(vCenter, 0,0,0);
-vec3.set(vUp, 0,1,0);
-
-var tempEye=vec3.create();
-var finalEye=vec3.create();
-var tempCenter=vec3.create();
-var finalCenter=vec3.create();
-
-var px=0;
-var py=0;
-
-var divisor=1;
-var element=null;
-updateSmoothness();
-
-op.onDelete=unbind;
-
-var doLockPointer=false;
-
-pointerLock.onChange=function()
-{
-    doLockPointer=pointerLock.get();
-    console.log("doLockPointer",doLockPointer);
-};
-
-function reset()
-{
-    px=px%(Math.PI*2);
-    py=py%(Math.PI*2);
-
-    percX=(initialX.get()*Math.PI*2);
-    percY=(initialAxis.get()-0.5);
-    radius=initialRadius.get();
-    eye=circlePos( percY );
-}
-
-function updateSmoothness()
-{
-    divisor=smoothness.get()*10+1.0;
-}
-
-smoothness.onChange=updateSmoothness;
-
-var initializing=true;
-
-function ip(val,goal)
-{
-    if(initializing)return goal;
-    return val+(goal-val)/divisor;
-}
-
-render.onTriggered=function()
-{
-    cgl.pushViewMatrix();
-
-    px=ip(px,percX);
-    py=ip(py,percY);
-    
-    outYDeg.set( (py+0.5)*180 );
-    outXDeg.set( (px)*180 );
-
-    eye=circlePos(py);
-
-    vec3.add(tempEye, eye, vOffset);
-    vec3.add(tempCenter, vCenter, vOffset);
-
-    finalEye[0]=ip(finalEye[0],tempEye[0]);
-    finalEye[1]=ip(finalEye[1],tempEye[1]);
-    finalEye[2]=ip(finalEye[2],tempEye[2]);
-    
-    finalCenter[0]=ip(finalCenter[0],tempCenter[0]);
-    finalCenter[1]=ip(finalCenter[1],tempCenter[1]);
-    finalCenter[2]=ip(finalCenter[2],tempCenter[2]);
-    
-    mat4.lookAt(viewMatrix, finalEye, finalCenter, vUp);
-    mat4.rotate(viewMatrix, viewMatrix, px, vUp);
-    mat4.multiply(cgl.vMatrix,cgl.vMatrix,viewMatrix);
-
-    trigger.trigger();
-    cgl.popViewMatrix();
-    initializing=false;
-};
-
-function circlePos(perc)
-{
-    if(radius<minDist.get()*mul.get())radius=minDist.get()*mul.get();
-    if(radius>maxDist.get()*mul.get())radius=maxDist.get()*mul.get();
-    
-    outRadius.set(radius*mul.get());
-    
-    var i=0,degInRad=0;
-    var vec=vec3.create();
-    degInRad = 360*perc/2*CGL.DEG2RAD;
-    vec3.set(vec,
-        Math.cos(degInRad)*radius*mul.get(),
-        Math.sin(degInRad)*radius*mul.get(),
-        0);
-    return vec;
-}
-
-function onmousemove(event)
-{
-    if(!mouseDown) return;
-
-    var x = event.clientX;
-    var y = event.clientY;
-    
-    var movementX=(x-lastMouseX)*speedX.get();
-    var movementY=(y-lastMouseY)*speedY.get();
-
-    if(doLockPointer)
-    {
-        movementX=event.movementX*mul.get();
-        movementY=event.movementY*mul.get();
-    }
-
-    if(event.which==3 && allowPanning.get())
-    {
-        vOffset[2]+=movementX*0.01*mul.get();
-        vOffset[1]+=movementY*0.01*mul.get();
-    }
-    else
-    if(event.which==2 && allowZooming.get())
-    {
-        radius+=(movementY)*0.05;
-        eye=circlePos(percY);
-    }
-    else
-    {
-        if(allowRotation.get())
-        {
-            percX+=(movementX)*0.003;
-            percY+=(movementY)*0.002;
-            
-            if(restricted.get())
-            {
-                if(percY>0.5)percY=0.5;
-                if(percY<-0.5)percY=-0.5;
-            }
-            
-        }
-    }
-
-    lastMouseX=x;
-    lastMouseY=y;
-}
-
-function onMouseDown(event)
-{
-    lastMouseX = event.clientX;
-    lastMouseY = event.clientY;
-    mouseDown=true;
-    
-    if(doLockPointer)
-    {
-        var el=op.patch.cgl.canvas;
-        el.requestPointerLock = el.requestPointerLock || el.mozRequestPointerLock || el.webkitRequestPointerLock;
-        if(el.requestPointerLock) el.requestPointerLock();
-        else console.log("no t found");
-        // document.addEventListener("mousemove", onmousemove, false);
-
-        document.addEventListener('pointerlockchange', lockChange, false);
-        document.addEventListener('mozpointerlockchange', lockChange, false);
-        document.addEventListener('webkitpointerlockchange', lockChange, false);
-    }
-}
-
-function onMouseUp()
-{
-    mouseDown=false;
-    // cgl.canvas.style.cursor='url(/ui/img/rotate.png),pointer';
-            
-    if(doLockPointer)
-    {
-        document.removeEventListener('pointerlockchange', lockChange, false);
-        document.removeEventListener('mozpointerlockchange', lockChange, false);
-        document.removeEventListener('webkitpointerlockchange', lockChange, false);
-
-        if(document.exitPointerLock) document.exitPointerLock();
-        document.removeEventListener("mousemove", onmousemove, false);
-    }
-}
-
-function lockChange()
-{
-    var el=op.patch.cgl.canvas;
-
-    if (document.pointerLockElement === el || document.mozPointerLockElement === el || document.webkitPointerLockElement === el)
-    {
-        document.addEventListener("mousemove", onmousemove, false);
-        console.log("listening...");
-    }
-}
-
-function onMouseEnter(e)
-{
-    // cgl.canvas.style.cursor='url(/ui/img/rotate.png),pointer';
-}
-
-initialRadius.onValueChange(function()
-{
-    // percX=(initialX.get()*Math.PI*2);
-    console.log('init radius');
-    radius=initialRadius.get();
-    reset();
-});
-
-initialX.onValueChange(function()
-{
-    px=percX=(initialX.get()*Math.PI*2);
-    
-});
-
-initialAxis.onValueChange(function()
-{
-    py=percY=(initialAxis.get()-0.5);
-    eye=circlePos( percY );
-});
-
-var onMouseWheel=function(event)
-{
-    if(allowZooming.get())
-    {
-        var delta=CGL.getWheelSpeed(event)*0.06;
-        radius+=(parseFloat(delta))*1.2;
-
-        eye=circlePos(percY);
-        event.preventDefault();
-    }
-};
-
-var ontouchstart=function(event)
-{
-    doLockPointer=false;
-    if(event.touches && event.touches.length>0) onMouseDown(event.touches[0]);
-};
-
-var ontouchend=function(event)
-{
-    doLockPointer=false;
-    onMouseUp();
-};
-
-var ontouchmove=function(event)
-{
-    doLockPointer=false;
-    if(event.touches && event.touches.length>0) onmousemove(event.touches[0]);
-};
-
-active.onChange=function()
-{
-    if(active.get())bind();
-        else unbind();
-}
-
-
-this.setElement=function(ele)
-{
-    unbind();
-    element=ele;
-    bind();
-}
-
-function bind()
-{
-    element.addEventListener('mousemove', onmousemove);
-    element.addEventListener('mousedown', onMouseDown);
-    element.addEventListener('mouseup', onMouseUp);
-    element.addEventListener('mouseleave', onMouseUp);
-    element.addEventListener('mouseenter', onMouseEnter);
-    element.addEventListener('contextmenu', function(e){e.preventDefault();});
-    element.addEventListener('wheel', onMouseWheel);
-
-    element.addEventListener('touchmove', ontouchmove);
-    element.addEventListener('touchstart', ontouchstart);
-    element.addEventListener('touchend', ontouchend);
-
-}
-
-function unbind()
-{
-    if(!element)return;
-    
-    element.removeEventListener('mousemove', onmousemove);
-    element.removeEventListener('mousedown', onMouseDown);
-    element.removeEventListener('mouseup', onMouseUp);
-    element.removeEventListener('mouseleave', onMouseUp);
-    element.removeEventListener('mouseenter', onMouseUp);
-    element.removeEventListener('wheel', onMouseWheel);
-
-    element.removeEventListener('touchmove', ontouchmove);
-    element.removeEventListener('touchstart', ontouchstart);
-    element.removeEventListener('touchend', ontouchend);
-}
-
-
-
-eye=circlePos(0);
-this.setElement(cgl.canvas);
-
-
-bind();
-
-initialX.set(0.25);
-initialRadius.set(0.05);
-
-
-};
-
-Ops.Gl.Matrix.OrbitControls.prototype = new CABLES.Op();
 
 //----------------
 
@@ -4401,227 +4024,6 @@ Ops.Gl.Geometry.TransformGeometry.prototype = new CABLES.Op();
 
 // **************************************************************
 // 
-// Ops.Value.DelayedValue
-// 
-// **************************************************************
-
-Ops.Value.DelayedValue = function()
-{
-Op.apply(this, arguments);
-var op=this;
-var attachments={};
-
-var exe=op.inFunction("Update");
-var v=op.inValue("Value",0);
-var delay=op.inValue("Delay",0.5);
-var result=op.outValue("Result",0);
-var clear=op.inValueBool("Clear on Change",true);
-
-var anim=new CABLES.TL.Anim();
-anim.createPort(op,"easing",function(){}).set("absolute");
-
-exe.onTriggered=function()
-{
-    result.set(anim.getValue( op.patch.freeTimer.get() )||0);
-};
-
-v.onChange=function()
-{
-    var current=anim.getValue( op.patch.freeTimer.get() );
-    var t=op.patch.freeTimer.get();
-
-    if(clear.get()) anim.clear(t);
-
-    anim.setValue(t+delay.get(),v.get());
-};
-
-};
-
-Ops.Value.DelayedValue.prototype = new CABLES.Op();
-
-//----------------
-
-
-
-// **************************************************************
-// 
-// Ops.Math.Incrementor
-// 
-// **************************************************************
-
-Ops.Math.Incrementor = function()
-{
-Op.apply(this, arguments);
-var op=this;
-var attachments={};
-var increment = op.inFunctionButton("Increment");
-var decrement = op.inFunctionButton("Decrement");
-var inLength=op.addInPort(new Port(op,"Length",OP_PORT_TYPE_VALUE));
-// var reset=op.addInPort(new Port(op,"Reset",OP_PORT_TYPE_FUNCTION));
-var reset=op.inFunctionButton("Reset");
-
-
-var inMode=op.inValueSelect("Mode",["Rewind","Stop at Max"]);
-
-var value=op.addOutPort(new Port(op,"Value",OP_PORT_TYPE_VALUE));
-
-var outRestarted=op.outFunction("Restarted");
-
-value.ignoreValueSerialize=true;
-inLength.set(10);
-var val=0;
-value.set(0);
-
-inLength.onTriggered=reset;
-reset.onTriggered=doReset;
-
-var MODE_REWIND=0;
-var MODE_STOP=1;
-
-var mode=MODE_REWIND;
-
-inMode.onChange=function()
-{
-    if(inMode.get()=="Rewind")
-    {
-        mode=MODE_REWIND;
-    }
-    if(inMode.get()=="Stop at Max")
-    {
-        mode=MODE_STOP;
-    }
-
-    
-};
-
-function doReset()
-{
-    value.set(null);
-    val=0;
-    value.set(val);
-    outRestarted.trigger();
-}
-
-decrement.onTriggered=function()
-{
-    val--;
-    if(mode==MODE_REWIND && val<0)val=inLength.get()-1;
-    if(mode==MODE_STOP && val<0)val=0;
-
-    value.set(val);
-};
-
-increment.onTriggered=function()
-{
-    val++;
-    if(mode==MODE_REWIND && val>=inLength.get())
-    {
-        val=0;
-        outRestarted.trigger();
-    }
-    if(mode==MODE_STOP && val>=inLength.get())val=inLength.get()-1;
-    
-    value.set(val);
-};
-
-
-};
-
-Ops.Math.Incrementor.prototype = new CABLES.Op();
-
-//----------------
-
-
-
-// **************************************************************
-// 
-// Ops.Math.Compare.IfBetweenThen
-// 
-// **************************************************************
-
-Ops.Math.Compare.IfBetweenThen = function()
-{
-Op.apply(this, arguments);
-var op=this;
-var attachments={};
-var exe=op.inFunction("exe");
-
-var number=op.inValue("number",0);
-var min=op.inValue("min",0);
-var max=op.inValue("max",1);
-
-var triggerThen=op.outFunction('then');
-var triggerElse=op.outFunction('else');
-var outBetween=op.outValue("bs between");
-
-exe.onTriggered=function()
-{
-    if(number.get()>=min.get() && number.get()<max.get())
-    {
-        outBetween.set(true);
-        triggerThen.trigger();
-    }
-    else
-    {
-        outBetween.set(false);
-        triggerElse.trigger();
-    }
-};
-
-
-};
-
-Ops.Math.Compare.IfBetweenThen.prototype = new CABLES.Op();
-
-//----------------
-
-
-
-// **************************************************************
-// 
-// Ops.Ui.Comment
-// 
-// **************************************************************
-
-Ops.Ui.Comment = function()
-{
-Op.apply(this, arguments);
-var op=this;
-var attachments={};
-op.name=" ";
-op.inTitle=op.inValueString("title",' ');
-op.text=op.inValueText("text");
-
-// op.inTitle.set('.');
-op.text.set('...');
-
-function update()
-{
-    if(CABLES.UI)
-    {
-        var uiOp=gui.patch().getUiOp(op);
-        // console.log(uiOp);
-        op.name=op.inTitle.get();
-        op.uiAttr('title',op.inTitle.get());
-        uiOp.oprect.updateComment();
-    }
-}
-
-op.inTitle.onChange=update;
-op.text.onChange=update;
-op.onLoaded=update;
-
-
-};
-
-Ops.Ui.Comment.prototype = new CABLES.Op();
-
-//----------------
-
-
-
-// **************************************************************
-// 
 // Ops.Anim.SimpleAnim
 // 
 // **************************************************************
@@ -4775,6 +4177,1072 @@ inTriggerPort.onTriggered = function() {
 };
 
 Ops.Trigger.TriggerExtender.prototype = new CABLES.Op();
+
+//----------------
+
+
+
+// **************************************************************
+// 
+// Ops.Array.ArrayContains
+// 
+// **************************************************************
+
+Ops.Array.ArrayContains = function()
+{
+Op.apply(this, arguments);
+var op=this;
+var attachments={};
+op.name="ArrayContains";
+
+var inArr=op.inArray("Array");
+var inValue=op.inValueString("SearchValue");
+
+var outFound=op.outValue("Found",false);
+var outIndex=op.outValue("Index",-1);
+
+inValue.onChange=exec;
+inArr.onChange=exec;
+
+function exec()
+{
+    if(inArr.get())
+    {
+        var index=inArr.get().indexOf(inValue.get());
+        
+        outIndex.set(index);
+        outFound.set(index>-1);
+    }
+}
+
+};
+
+Ops.Array.ArrayContains.prototype = new CABLES.Op();
+
+//----------------
+
+
+
+// **************************************************************
+// 
+// Ops.Boolean.IfTrueThen
+// 
+// **************************************************************
+
+Ops.Boolean.IfTrueThen = function()
+{
+Op.apply(this, arguments);
+var op=this;
+var attachments={};
+
+var exe=op.addInPort(new Port(op,"exe",OP_PORT_TYPE_FUNCTION));
+
+var boolean=op.addInPort(new Port(op,"boolean",OP_PORT_TYPE_VALUE,{display:'bool'}));
+
+var triggerThen=op.addOutPort(new Port(op,"then",OP_PORT_TYPE_FUNCTION));
+var triggerElse=op.addOutPort(new Port(op,"else",OP_PORT_TYPE_FUNCTION));
+
+boolean.set(false);
+
+function execBool()
+{
+    if(exe.isLinked())return;
+    exec();
+}
+
+function exec()
+{
+    if(boolean.get() || boolean.get()>=1 )
+    {
+        triggerThen.trigger();
+    }
+    else
+    {
+        triggerElse.trigger();
+    }
+}
+
+boolean.onValueChanged=execBool;
+exe.onTriggered=exec;
+
+
+};
+
+Ops.Boolean.IfTrueThen.prototype = new CABLES.Op();
+
+//----------------
+
+
+
+// **************************************************************
+// 
+// Ops.Trigger.TriggerCounter
+// 
+// **************************************************************
+
+Ops.Trigger.TriggerCounter = function()
+{
+Op.apply(this, arguments);
+var op=this;
+var attachments={};
+const exe=op.inFunctionButton("exe");
+const reset=op.inFunctionButton("reset");//op.addInPort(new Port(op,"reset",OP_PORT_TYPE_FUNCTION));
+const trigger=op.addOutPort(new Port(op,"trigger",OP_PORT_TYPE_FUNCTION));
+const num=op.addOutPort(new Port(op,"timesTriggered",OP_PORT_TYPE_VALUE));
+
+var n=0;
+
+exe.onTriggered= function()
+{
+    n++;
+    num.set(n);
+    trigger.trigger();
+};
+
+reset.onTriggered= function()
+{
+    n=0;
+    num.set(n);
+};
+
+
+};
+
+Ops.Trigger.TriggerCounter.prototype = new CABLES.Op();
+
+//----------------
+
+
+
+// **************************************************************
+// 
+// Ops.Gl.Texture
+// 
+// **************************************************************
+
+Ops.Gl.Texture = function()
+{
+Op.apply(this, arguments);
+var op=this;
+var attachments={};
+var filename=op.addInPort(new Port(op,"file",OP_PORT_TYPE_VALUE,{ display:'file',type:'string',filter:'image' } ));
+var tfilter=op.inValueSelect("filter",['nearest','linear','mipmap']);
+var wrap=op.inValueSelect("wrap",['repeat','mirrored repeat','clamp to edge'],"clamp to edge");
+var flip=op.addInPort(new Port(op,"flip",OP_PORT_TYPE_VALUE,{display:'bool'}));
+var unpackAlpha=op.addInPort(new Port(op,"unpackPreMultipliedAlpha",OP_PORT_TYPE_VALUE,{display:'bool'}));
+
+
+var textureOut=op.outTexture("texture");
+var width=op.addOutPort(new Port(op,"width",OP_PORT_TYPE_VALUE));
+var height=op.addOutPort(new Port(op,"height",OP_PORT_TYPE_VALUE));
+var loading=op.addOutPort(new Port(op,"loading",OP_PORT_TYPE_VALUE));
+var ratio=op.outValue("Aspect Ratio");
+
+flip.set(false);
+unpackAlpha.set(false);
+unpackAlpha.hidePort();
+
+var cgl=op.patch.cgl;
+var cgl_filter=0;
+var cgl_wrap=0;
+
+flip.onChange=function(){reload();};
+filename.onChange=reload;
+
+tfilter.onChange=onFilterChange;
+wrap.onChange=onWrapChange;
+unpackAlpha.onChange=function(){ reload(); };
+
+var timedLoader=0;
+
+var setTempTexture=function()
+{
+    var t=CGL.Texture.getTempTexture(cgl);
+    textureOut.set(t);
+};
+
+var loadingId=null;
+
+function reload(nocache)
+{
+    if(!loadingId)loadingId=cgl.patch.loading.start('texture',filename.get());
+    clearTimeout(timedLoader);
+    timedLoader=setTimeout(function()
+    {
+        realReload(nocache);
+    },30);
+}
+
+function realReload(nocache)
+{
+    if(!loadingId)loadingId=cgl.patch.loading.start('texture',filename.get());
+    
+    var url=op.patch.getFilePath(String(filename.get()));
+    if(nocache)url+='?rnd='+CABLES.generateUUID();
+
+    if((filename.get() && filename.get().length>1))
+    {
+        loading.set(true);
+
+        var tex=CGL.Texture.load(cgl,url,
+            function(err)
+            {
+                // console.log('tex loaded!!');
+
+                if(err)
+                {
+                    setTempTexture();
+                    op.uiAttr({'error':'could not load texture "'+filename.get()+'"'});
+                    cgl.patch.loading.finished(loadingId);
+                    return;
+                }
+                else op.uiAttr({'error':null});
+                textureOut.set(tex);
+                width.set(tex.width);
+                height.set(tex.height);
+                ratio.set(tex.width/tex.height);
+
+                if(!tex.isPowerOfTwo()) op.uiAttr(
+                    {
+                        hint:'texture dimensions not power of two! - texture filtering will not work.',
+                        warning:null
+                    });
+                    else op.uiAttr(
+                        {
+                            hint:null,
+                            warning:null
+                        });
+
+                textureOut.set(null);
+                textureOut.set(tex);
+                cgl.patch.loading.finished(loadingId);
+                
+                // tex.printInfo();
+
+            },{
+                wrap:cgl_wrap,
+                flip:flip.get(),
+                unpackAlpha:unpackAlpha.get(),
+                filter:cgl_filter
+            });
+
+        textureOut.set(null);
+        textureOut.set(tex);
+
+        if(!textureOut.get() && nocache)
+        {
+        }
+        loading.set(false);
+        cgl.patch.loading.finished(loadingId);
+    }
+    else
+    {
+        cgl.patch.loading.finished(loadingId);
+        setTempTexture();
+    }
+}
+
+
+function onFilterChange()
+{
+    if(tfilter.get()=='nearest') cgl_filter=CGL.Texture.FILTER_NEAREST;
+    if(tfilter.get()=='linear') cgl_filter=CGL.Texture.FILTER_LINEAR;
+    if(tfilter.get()=='mipmap') cgl_filter=CGL.Texture.FILTER_MIPMAP;
+
+    reload();
+}
+
+function onWrapChange()
+{
+    if(wrap.get()=='repeat') cgl_wrap=CGL.Texture.WRAP_REPEAT;
+    if(wrap.get()=='mirrored repeat') cgl_wrap=CGL.Texture.WRAP_MIRRORED_REPEAT;
+    if(wrap.get()=='clamp to edge') cgl_wrap=CGL.Texture.WRAP_CLAMP_TO_EDGE;
+
+    reload();
+}
+
+op.onFileUploaded=function(fn)
+{
+    if(filename.get() && filename.get().indexOf(fn)>-1)
+    {
+        textureOut.set(null);
+        textureOut.set(CGL.Texture.getTempTexture(cgl));
+
+        realReload(true);
+    }
+};
+
+
+
+
+tfilter.set('linear');
+wrap.set('repeat');
+
+
+textureOut.set(CGL.Texture.getEmptyTexture(cgl));
+
+
+
+};
+
+Ops.Gl.Texture.prototype = new CABLES.Op();
+
+//----------------
+
+
+
+// **************************************************************
+// 
+// Ops.Gl.Meshes.Rectangle
+// 
+// **************************************************************
+
+Ops.Gl.Meshes.Rectangle = function()
+{
+Op.apply(this, arguments);
+var op=this;
+var attachments={};
+var render=op.inFunction("render");
+var trigger=op.addOutPort(new Port(op,"trigger",OP_PORT_TYPE_FUNCTION));
+
+var width=op.inValue("width",1);
+var height=op.inValue("height",1);
+
+var pivotX=op.addInPort(new Port(op,"pivot x",OP_PORT_TYPE_VALUE,{display:'dropdown',values:["center","left","right"]} ));
+var pivotY=op.addInPort(new Port(op,"pivot y",OP_PORT_TYPE_VALUE,{display:'dropdown',values:["center","top","bottom"]} ));
+
+var nColumns=op.inValueInt("num columns",1);
+var nRows=op.inValueInt("num rows",1);
+var axis=op.addInPort(new Port(op,"axis",OP_PORT_TYPE_VALUE,{display:'dropdown',values:["xy","xz"]} ));
+
+
+
+var active=op.inValueBool('Active',true);
+
+var geomOut=op.addOutPort(new Port(op,"geometry",OP_PORT_TYPE_OBJECT));
+geomOut.ignoreValueSerialize=true;
+
+var cgl=op.patch.cgl;
+axis.set('xy');
+pivotX.set('center');
+pivotY.set('center');
+
+op.setPortGroup([pivotX,pivotY]);
+op.setPortGroup([width,height]);
+op.setPortGroup([nColumns,nRows]);
+
+
+
+var geom=new CGL.Geometry('rectangle');
+var mesh=null;
+
+axis.onChange=rebuild;
+pivotX.onChange=rebuild;
+pivotY.onChange=rebuild;
+width.onChange=rebuild;
+height.onChange=rebuild;
+nRows.onChange=rebuild;
+nColumns.onChange=rebuild;
+rebuild();
+
+render.onTriggered=function()
+{
+    if(active.get() && mesh) mesh.render(cgl.getShader());
+    
+    trigger.trigger();
+};
+
+function rebuild()
+{
+    var w=width.get();
+    var h=height.get();
+    var x=0;
+    var y=0;
+    
+    if(typeof w=='string')w=parseFloat(w);
+    if(typeof h=='string')h=parseFloat(h);
+    
+    if(pivotX.get()=='center') x=0;
+    if(pivotX.get()=='right') x=-w/2;
+    if(pivotX.get()=='left') x=+w/2;
+
+    if(pivotY.get()=='center') y=0;
+    if(pivotY.get()=='top') y=-h/2;
+    if(pivotY.get()=='bottom') y=+h/2;
+
+    var verts=[];
+    var tc=[];
+    var norms=[];
+    var indices=[];
+
+    var numRows=Math.round(nRows.get());
+    var numColumns=Math.round(nColumns.get());
+
+    var stepColumn=w/numColumns;
+    var stepRow=h/numRows;
+
+    var c,r;
+
+    for(r=0;r<=numRows;r++)
+    {
+        for(c=0;c<=numColumns;c++)
+        {
+            verts.push( c*stepColumn - width.get()/2+x );
+            if(axis.get()=='xz') verts.push( 0.0 );
+            verts.push( r*stepRow - height.get()/2+y );
+            if(axis.get()=='xy') verts.push( 0.0 );
+
+            tc.push( c/numColumns );
+            tc.push( 1.0-r/numRows );
+
+            if(axis.get()=='xz')
+            {
+                norms.push(0);
+                norms.push(1);
+                norms.push(0);
+            }
+
+            if(axis.get()=='xy')
+            {
+                norms.push(0);
+                norms.push(0);
+                norms.push(-1);
+            }
+        }
+    }
+    
+    for(c=0;c<numColumns;c++)
+    {
+        for(r=0;r<numRows;r++)
+        {
+            var ind = c+(numColumns+1)*r;
+            var v1=ind;
+            var v2=ind+1;
+            var v3=ind+numColumns+1;
+            var v4=ind+1+numColumns+1;
+
+            indices.push(v1);
+            indices.push(v3);
+            indices.push(v2);
+
+            indices.push(v2);
+            indices.push(v3);
+            indices.push(v4);
+        }
+    }
+
+    geom.clear();
+    geom.vertices=verts;
+    geom.texCoords=tc;
+    geom.verticesIndices=indices;
+    geom.vertexNormals=norms;
+    geom.calculateNormals();
+
+    if(!mesh) mesh=new CGL.Mesh(cgl,geom);
+        else mesh.setGeom(geom);
+
+    geomOut.set(null);
+    geomOut.set(geom);
+
+}
+
+
+};
+
+Ops.Gl.Meshes.Rectangle.prototype = new CABLES.Op();
+
+//----------------
+
+
+
+// **************************************************************
+// 
+// Ops.Color.HSBtoRGB
+// 
+// **************************************************************
+
+Ops.Color.HSBtoRGB = function()
+{
+Op.apply(this, arguments);
+var op=this;
+var attachments={};
+var outR=op.outValue("R");
+var outG=op.outValue("G");
+var outB=op.outValue("B");
+
+var inH=op.inValueSlider("Hue");
+var inS=op.inValueSlider("Saturation",1);
+var inV=op.inValueSlider("Brightness",0.5);
+
+// var hslToRgb = function(hue, saturation, lightness){
+inH.onChange=inS.onChange=inV.onChange=update;
+update();
+
+function update()
+{
+
+    var hue=(inH.get());
+    var saturation=(inS.get());
+    var lightness=(inV.get());
+    
+    // based on algorithm from http://en.wikipedia.org/wiki/HSL_and_HSV#Converting_to_RGB
+    
+    var chroma = (1 - Math.abs((2 * lightness) - 1)) * saturation;
+    var huePrime = hue *6; // / 60;
+    var secondComponent = chroma * (1 - Math.abs((huePrime % 2) - 1));
+
+    huePrime = Math.floor(huePrime)||0;
+    var red=0;
+    var green=0;
+    var blue=0;
+
+    if( huePrime === 0 ){
+        red = chroma;
+        green = secondComponent;
+        blue = 0;
+    }else if( huePrime === 1 ){
+        red = secondComponent;
+        green = chroma;
+        blue = 0;
+    }else if( huePrime === 2 ){
+        red = 0;
+        green = chroma;
+        blue = secondComponent;
+    }else if( huePrime === 3 ){
+        red = 0;
+        green = secondComponent;
+        blue = chroma;
+    }else if( huePrime === 4 ){
+        red = secondComponent;
+        green = 0;
+        blue = chroma;
+    }else if( huePrime === 5 ){
+        red = chroma;
+        green = 0;
+        blue = secondComponent;
+    }
+    var lightnessAdjustment = (lightness - (chroma / 2));
+    red += lightnessAdjustment;
+    green += lightnessAdjustment;
+    blue += lightnessAdjustment;
+
+    outR.set(red);
+    outG.set(green);
+    outB.set(blue);
+
+//   return [Math.round(red * 255), Math.round(green * 255), Math.round(blue * 255)];
+
+};
+
+
+};
+
+Ops.Color.HSBtoRGB.prototype = new CABLES.Op();
+
+//----------------
+
+
+
+// **************************************************************
+// 
+// Ops.Math.MapRange
+// 
+// **************************************************************
+
+Ops.Math.MapRange = function()
+{
+Op.apply(this, arguments);
+var op=this;
+var attachments={};
+
+var result=op.addOutPort(new Port(op,"result"));
+var v=op.addInPort(new Port(op,"value"));
+var old_min=op.addInPort(new Port(op,"old min"));
+var old_max=op.addInPort(new Port(op,"old max"));
+var new_min=op.addInPort(new Port(op,"new min"));
+var new_max=op.addInPort(new Port(op,"new max"));
+var easing=op.inValueSelect("Easing",["Linear","Smoothstep","Smootherstep"],"Linear");
+
+var ease=0;
+var r=0;
+
+easing.onChange=function()
+{
+    if(easing.get()=="Smoothstep") ease=1;
+        else if(easing.get()=="Smootherstep") ease=2;
+            else ease=0;
+};
+
+
+function exec()
+{
+    if(v.get()>=Math.max( old_max.get(),old_min.get() ))
+    {
+        result.set(new_max.get());
+        return;
+    }
+    else
+    if(v.get()<=Math.min( old_max.get(),old_min.get() )) 
+    {
+        result.set(new_min.get());
+        return;
+    }
+
+    var nMin=new_min.get();
+    var nMax=new_max.get();
+    var oMin=old_min.get();
+    var oMax=old_max.get();
+    var x=v.get();
+
+    var reverseInput = false;
+    var oldMin = Math.min( oMin, oMax );
+    var oldMax = Math.max( oMin, oMax );
+    if(oldMin!= oMin) reverseInput = true;
+
+    var reverseOutput = false;
+    var newMin = Math.min( nMin, nMax );
+    var newMax = Math.max( nMin, nMax );
+    if(newMin != nMin) reverseOutput = true;
+
+    var portion=0;
+
+    if(reverseInput) portion = (oldMax-x)*(newMax-newMin)/(oldMax-oldMin);
+        else portion = (x-oldMin)*(newMax-newMin)/(oldMax-oldMin);
+
+    if(reverseOutput) r=newMax - portion;
+        else r=portion + newMin;
+
+    if(ease===0)
+    {
+        result.set(r);
+    }
+    else
+    if(ease==1)
+    {
+        x = Math.max(0, Math.min(1, (r-nMin)/(nMax-nMin)));
+        result.set( nMin+x*x*(3 - 2*x)* (nMax-nMin) ); // smoothstep
+    }
+    else
+    if(ease==2)
+    {
+        x = Math.max(0, Math.min(1, (r-nMin)/(nMax-nMin)));
+        result.set( nMin+x*x*x*(x*(x*6 - 15) + 10) * (nMax-nMin) ) ; // smootherstep
+    }
+
+}
+
+v.set(0);
+old_min.set(0);
+old_max.set(1);
+new_min.set(-1);
+new_max.set(1);
+
+
+v.onValueChanged=exec;
+old_min.onValueChanged=exec;
+old_max.onValueChanged=exec;
+new_min.onValueChanged=exec;
+new_max.onValueChanged=exec;
+
+result.set(0);
+
+exec();
+
+};
+
+Ops.Math.MapRange.prototype = new CABLES.Op();
+
+//----------------
+
+
+
+// **************************************************************
+// 
+// Ops.User.action.modulo
+// 
+// **************************************************************
+
+Ops.User.action.modulo = function()
+{
+Op.apply(this, arguments);
+var op=this;
+var attachments={};
+
+var result=op.addOutPort(new Port(op,"result"));
+var number1=op.addInPort(new Port(op,"number1"));
+var number2=op.addInPort(new Port(op,"number2"));
+
+function exec()
+{
+    var n2 = number2.get();
+    var n1 = number1.get();
+    
+    var re = ((n1%n2)+n2)%n2;
+    if(re!=re) re=0;
+    result.set(re);
+    
+    
+}
+
+number1.onChange=exec;
+number2.onChange=exec;
+
+number1.set(1);
+number2.set(2);
+
+
+};
+
+Ops.User.action.modulo.prototype = new CABLES.Op();
+
+//----------------
+
+
+
+// **************************************************************
+// 
+// Ops.Gl.Matrix.Camera
+// 
+// **************************************************************
+
+Ops.Gl.Matrix.Camera = function()
+{
+Op.apply(this, arguments);
+var op=this;
+var attachments={};
+var render=op.addInPort(new Port(op,"render",OP_PORT_TYPE_FUNCTION));
+var trigger=op.addOutPort(new Port(op,"trigger",OP_PORT_TYPE_FUNCTION));
+
+/* Inputs */
+// projection | prespective & ortogonal
+var projectionMode=op.addInPort(new Port(op,"projection mode",OP_PORT_TYPE_VALUE,{display:'dropdown',values:['prespective','ortogonal']}));
+var zNear=op.addInPort(new Port(op,"frustum near",OP_PORT_TYPE_VALUE ));
+var zFar=op.addInPort(new Port(op,"frustum far",OP_PORT_TYPE_VALUE ));
+
+var fov=op.addInPort(new Port(op,"fov",OP_PORT_TYPE_VALUE ));
+
+var autoAspect=op.inValueBool("Auto Aspect Ratio",true);
+var aspect=op.inValue("Aspect Ratio");
+
+// look at camera
+var eyeX=op.addInPort(new Port(op,"eye X"));
+var eyeY=op.addInPort(new Port(op,"eye Y"));
+var eyeZ=op.addInPort(new Port(op,"eye Z"));
+
+var centerX=op.addInPort(new Port(op,"center X"));
+var centerY=op.addInPort(new Port(op,"center Y"));
+var centerZ=op.addInPort(new Port(op,"center Z"));
+
+// camera transform and movements
+var posX=op.addInPort(new Port(op,"truck"),0);
+var posY=op.addInPort(new Port(op,"boom"),0);
+var posZ=op.addInPort(new Port(op,"dolly"),0);
+
+var rotX=op.addInPort(new Port(op,"tilt"),0);
+var rotY=op.addInPort(new Port(op,"pan"),0);
+var rotZ=op.addInPort(new Port(op,"roll"),0);
+
+
+/* Outputs */
+var outAsp=op.addOutPort(new Port(op,"Aspect",OP_PORT_TYPE_VALUE));
+var outArr=op.outArray("Look At Array");
+
+
+/* logic */
+var cgl=op.patch.cgl;
+
+// prespective
+projectionMode.set('prespective');
+zNear.set(0.01);
+zFar.set(500.0);
+fov.set(45);
+aspect.set(1);
+
+var asp=0;
+
+// look at camera
+centerX.set(0);
+centerY.set(0);
+centerZ.set(0);
+
+eyeX.set(0);
+eyeY.set(0);
+eyeZ.set(5);
+
+var vUp=vec3.create();
+var vEye=vec3.create();
+var vCenter=vec3.create();
+var transMatrix=mat4.create();
+mat4.identity(transMatrix);
+
+var arr=[];
+
+// Transform and move
+var vPos=vec3.create();
+var transMatrixMove=mat4.create();
+mat4.identity(transMatrixMove);
+
+var updateCameraMovementMatrix=true;
+
+render.onTriggered=function() {
+    // Aspect ration
+    if(!autoAspect.get()) asp=aspect.get();
+    else asp=cgl.getViewPort()[2]/cgl.getViewPort()[3];
+    outAsp.set(asp);
+    
+    // translation (truck, boom, dolly)
+    cgl.pushViewMatrix();
+    
+    if (updateCameraMovementMatrix) {
+        mat4.identity(transMatrixMove);
+        
+        vec3.set(vPos, posX.get(),posY.get(),posZ.get());
+        if(posX.get()!==0.0 || posY.get()!==0.0 || posZ.get()!==0.0)
+            mat4.translate(transMatrixMove,transMatrixMove, vPos);
+        
+        if(rotX.get()!==0)
+            mat4.rotateX(transMatrixMove,transMatrixMove, rotX.get()*CGL.DEG2RAD);
+        if(rotY.get()!==0)
+            mat4.rotateY(transMatrixMove,transMatrixMove, rotY.get()*CGL.DEG2RAD);
+        if(rotZ.get()!==0)
+            mat4.rotateZ(transMatrixMove,transMatrixMove, rotZ.get()*CGL.DEG2RAD);
+        
+        updateCameraMovementMatrix = false;
+    }
+    
+    mat4.multiply(cgl.vMatrix,cgl.vMatrix,transMatrixMove);
+    
+    // projection (prespective / ortogonal)
+    cgl.pushPMatrix();
+    
+    // look at
+    cgl.pushViewMatrix();
+ 
+    if (projectionMode.get()=='prespective') {
+        mat4.perspective(
+            cgl.pMatrix,
+            fov.get()*0.0174533,
+            asp, 
+            zNear.get(), 
+            zFar.get()
+        );
+    } else if (projectionMode.get()=='ortogonal') {
+        mat4.ortho(
+            cgl.pMatrix,
+            -1 * (fov.get() / 14),
+             1 * (fov.get() / 14),
+            -1 * (fov.get() / 14) / asp,
+             1 * (fov.get() / 14) / asp,
+            zNear.get(), 
+            zFar.get()
+        );
+    }
+    
+    
+	arr[0]=eyeX.get();
+	arr[1]=eyeY.get();
+	arr[2]=eyeZ.get();
+
+	arr[3]=centerX.get();
+	arr[4]=centerY.get();
+	arr[5]=centerZ.get();
+
+	arr[6]=0;
+	arr[7]=1;
+	arr[8]=0;
+
+	outArr.set(arr);
+
+	vec3.set(vUp, 0, 1, 0);
+	vec3.set(vEye, eyeX.get(),eyeY.get(),eyeZ.get());
+	vec3.set(vCenter, centerX.get(),centerY.get(),centerZ.get());
+
+	mat4.lookAt(transMatrix, vEye, vCenter, vUp);
+
+	mat4.multiply(cgl.vMatrix,cgl.vMatrix,transMatrix);
+
+	trigger.trigger();
+
+	cgl.popViewMatrix();
+	cgl.popPMatrix();
+
+	cgl.popViewMatrix();
+    
+    
+	// GUI for dolly, boom and truck
+	if(CABLES.UI && gui.patch().isCurrentOp(op)) 
+		gui.setTransformGizmo({
+			posX:posX,
+			posY:posY,
+			posZ:posZ
+		});
+};
+
+var updateUI=function() {
+	if(!autoAspect.get()) {
+		aspect.setUiAttribs({hidePort:false,greyout:false});
+	} else {
+		aspect.setUiAttribs({hidePort:true,greyout:true});
+	}
+};
+
+var cameraMovementChanged=function() {
+	updateCameraMovementMatrix = true;
+};
+
+// listeners
+posX.onChange=cameraMovementChanged;
+posY.onChange=cameraMovementChanged;
+posZ.onChange=cameraMovementChanged;
+
+rotX.onChange=cameraMovementChanged;
+rotY.onChange=cameraMovementChanged;
+rotZ.onChange=cameraMovementChanged;
+
+autoAspect.onChange=updateUI;
+updateUI();
+
+
+
+
+};
+
+Ops.Gl.Matrix.Camera.prototype = new CABLES.Op();
+
+//----------------
+
+
+
+// **************************************************************
+// 
+// Ops.Anim.RandomAnim
+// 
+// **************************************************************
+
+Ops.Anim.RandomAnim = function()
+{
+Op.apply(this, arguments);
+var op=this;
+var attachments={};
+
+var exe=op.inFunction("exe");
+var min=op.inValue("min",0);
+var max=op.inValue("max",1);
+
+var pause=op.inValue("pause between",0);
+var seed=op.inValue("random seed",0);
+
+var duration=op.inValue("duration",0.5);
+
+var result=op.outValue("result");
+
+var anim=new CABLES.TL.Anim();
+anim.createPort(op,"easing",reinit);
+
+reinit();
+
+min.onChange=reinit;
+max.onChange=reinit;
+pause.onChange=reinit;
+seed.onChange=reinit;
+duration.onChange=reinit;
+
+function getRandom()
+{
+    var minVal = parseFloat( min.get() );
+    var maxVal = parseFloat( max.get() );
+    return Math.seededRandom() * ( maxVal - minVal ) + minVal;
+}
+
+function reinit()
+{
+    Math.randomSeed=seed.get();
+    init(getRandom());
+}
+
+function init(v)
+{
+    anim.clear();
+    
+    anim.setValue(op.patch.freeTimer.get(), v);
+    if(pause.get()!=0.0)anim.setValue(op.patch.freeTimer.get()+pause.get(), v);
+    
+    anim.setValue(parseFloat(duration.get())+op.patch.freeTimer.get()+pause.get(), getRandom());
+}
+
+
+exe.onTriggered=function()
+{
+    if(op.instanced(exe))return;
+
+
+    Math.randomSeed=seed.get();
+
+// +offset.get())%duration.get()
+    var t=op.patch.freeTimer.get();
+    var v=anim.getValue(t);
+    if(anim.hasEnded(t))
+    {
+        anim.clear();
+        init(v);
+    }
+    result.set(v);
+};
+
+
+
+};
+
+Ops.Anim.RandomAnim.prototype = new CABLES.Op();
+
+//----------------
+
+
+
+// **************************************************************
+// 
+// Ops.Array.Array
+// 
+// **************************************************************
+
+Ops.Array.Array = function()
+{
+Op.apply(this, arguments);
+var op=this;
+var attachments={};
+var inLength=op.inValueInt("Length",100);
+var inDefaultValue=op.inValueInt("DefaultValue");
+var inReset=op.inFunctionButton("Reset");
+var outArr=op.outArray("Array");
+
+var arr=[];
+inReset.onTriggered=reset;
+inLength.onChange=reset;
+inDefaultValue.onChange=reset;
+reset();
+
+function reset()
+{
+    outArr.set(arr);
+    var l=parseInt(inLength.get(),10);
+    if(l<0)return;
+    
+    arr.length=l;
+    
+    for(var i=0;i<l;i++)
+    {
+        arr[i]=inDefaultValue.get();
+    }
+    outArr.set(null);
+    outArr.set(arr);
+}
+
+
+
+
+};
+
+Ops.Array.Array.prototype = new CABLES.Op();
 
 //----------------
 

@@ -134,6 +134,8 @@ for (var i = 0; i < 8; i++)
    points.push(new Point(i));
 
 
+var activePoints = [];
+
 
 // get phones
 socket.on('dataChannel3', function(data) {
@@ -181,8 +183,9 @@ function interpolate(a, b, frac) {
     return [nx, ny, nz];
 }
 
-// TODO: check if busy and answer
 function assignPoints() {
+   activePoints = [];
+
 	// clean death points
    for (var i in points) {
       var point = points[i];
@@ -191,6 +194,8 @@ function assignPoints() {
          if (phone.status === 'death') {
             point.removePhone();
             phone.disconnect();
+         } else {
+            activePoints.push(parseInt(i));
          }
       } else {
 
@@ -206,10 +211,13 @@ function assignPoints() {
          if (found) {
             point.assignPhone(phones[id]);
             phones[id].acceptRequest();
+            activePoints.push(parseInt(i));
          }
 
       }
    }
+
+   CABLES.patch.setVariable("activePoints", activePoints);
 }
 
 function updatePatch() {
@@ -227,7 +235,7 @@ function updatePatch() {
 
 // init CABLES path
 CABLES.patch = new CABLES.Patch({
-	 patchFile: 'js/OST_test01.json',
+	 patchFile: 'cables_OST_action-io/js/OST_action-io.json',
 	 prefixAssetPath: '',
 	 glCanvasId: 'glcanvas',
 	 glCanvasResizeToWindow: true,
