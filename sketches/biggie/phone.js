@@ -85,9 +85,3 @@ function drawPlayers() {
   }
 }
 
-function b1() {
-  socket.emit('dataChannel1', {
-    id: socket.id,
-    newColor: true
-  });
-}
