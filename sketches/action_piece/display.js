@@ -62,7 +62,7 @@ var Point = class Point {
       this.deathPoint = [
          (Math.sin(i/20.0) - .5)*1.4,
          (Math.cos(i/20.0) - .5)*1.4,
-         5
+         7
       ];
       this.lastPoint = [0,0,0];
 
@@ -102,6 +102,7 @@ var Point = class Point {
       }
    }
 
+   // TODO: manage never input phones
    _update(now) {
       if (this.phone.lastInput != 0) {
          try {
@@ -138,6 +139,7 @@ for (var i = 0; i < 8; i++)
 var activePoints = [];
 
 
+// TODO: manage dissconnected phones so not assign point to a death phone
 // get phones
 socket.on('dataChannel3', function(data) {
    if (data.topic == 'request') {

@@ -2,12 +2,13 @@ var socket = io();
 
 var config = {
    socket: {},
-   status: 'waiting'
+   status: 'waiting',
+   restartPointAngle: true
 };
 
 socket.on('connected', function(id) {
    config.socket.id = id;
-   console.log('connected with id:', id);
+   //console.log('connected with id:', id);
 
    updateUI();
 });
@@ -37,12 +38,12 @@ socket.on('dataChannel3', function(data) {
 
 // acelerometer sensor
 if (window.DeviceOrientationEvent) {
-   console.log('device Orientation');
+   //console.log('device Orientation');
    window.addEventListener("deviceorientation", function() {
       tilt(event.alpha, event.beta, event.gamma, event.absolute);
    }, true);
 } else if (window.DeviceMotionEvent) {
-   console.log('device Motion');
+   //console.log('device Motion');
    window.addEventListener('devicemotion', function() {
       tilt(event.acceleration.x * 2, event.acceleration.y * 2, event.acceleration.z * 2);
    }, true);
@@ -53,23 +54,26 @@ if (window.DeviceOrientationEvent) {
 
 var timer = 0;
 function tilt(a, b, g, ab) {
-   if (config.startPointAngle == undefined) config.startPointAngle = a;
+   if (config.restartPointAngle) {
+      config.restartPointAngle = false;
+      config.startPointAngle = a;
+   }
 
 
    if(new Date().getTime() > timer + 10) {
-      console.log('tilt | a: ' + a + ' | b: ' + b + ' | g: ' + g);
+      //console.log('tilt | a: ' + a + ' | b: ' + b + ' | g: ' + g);
       var point = {
          x: angleDistance(-a, -config.startPointAngle) / 90.0,
          y: angleDistance(0, -b) / 90.0
       };
-      console.log('x: ' + point.x + ' | y: ' + point.y);
+      //console.log('x: ' + point.x + ' | y: ' + point.y);
 
-      $('#a').css({
-         left: 100 + point.x * 100,
-         top: 400 + -point.y * 100
-      });
+      //$('#a').css({
+         //left: 100 + point.x * 100,
+         //top: 400 + -point.y * 100
+      //});
 
-      $('#val').html('absolute: ' + ab + 'a: ' + a + ' | b: ' + b + '</br>x: ' + point.x + ' | y: ' + point.y);
+      //$('#val').html('absolute: ' + ab + 'a: ' + a + ' | b: ' + b + '</br>x: ' + point.x + ' | y: ' + point.y);
       
       pushPointData(point);
 
@@ -134,3 +138,8 @@ function sendRequest() {
 }
 
 $('.btnStart').on('click', sendRequest);
+
+// reset the startPointAngle
+$(document).on('click', function(e) {
+   config.restartPointAngle = true;
+});

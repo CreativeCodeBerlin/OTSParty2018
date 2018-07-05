@@ -2,18 +2,27 @@
 <head>
    <title>OTSParty2018</title>
    <link rel="stylesheet" href="phone.css">
-   <meta name="viewport" content="width=device-width, initial-       scale=1.0, user-scalable=no">
+   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+   <meta name="apple-mobile-web-app-status-bar-style" content="black">
+   <meta name="theme-color" content="#131313">
 </head>
 <body>
+   <img class="center-block" src="img/fire.svg"/>
    <div class="screen form" style="display: none;">
-      <button class="btnStart">Start</button>
+      <div class="center-block">
+         <button class="btnStart noselect"><span>start</span></button>
+      </div>
    </div>
    <div class="screen busy" style="display: none;">
-      <h3>Busy</h3>
+      <img class="center-block" src="img/fire.svg"/>
+      <h3 class="margin-top" >Sorry I'm busy</h3>
+      <p>The network already has too many users.</br>You will automatically enter as soon as there is a free spot.</p>
    </div>
    <div class="screen play" style="display: none;">
-      <p id="val"></p>
-      <div id="a"></div>
+      <h3>Move your phone</h3>
+      <p>Point to the screen and move the phone for interacting.</br>Click on the screen if you need to calibrate the sensor.</p>
+      <img class="center-block margin-top" src="img/move.svg"/>
+   </div>
    </div>
    <script src="/libs/socket.io.js"></script>
    <script src="/libs/jquery.js"></script>
