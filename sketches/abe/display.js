@@ -1,6 +1,11 @@
 var phones = {};
 var fx;
 
+var CMD_START = 0;
+var CMD_MOVE = 1;
+var CMD_END = 2;
+var CMD_COLOR = 3;
+
 // --- socket ---
 var socket = io();
 
@@ -23,10 +28,11 @@ socket.on('dataChannel1', function(data) {
   }
   var phone = phones[data.id];
 
-  if (data.mousePosition != undefined) {
+  if(data.cmd <= CMD_END) {
     phone.last = new Date().getTime();
-    phone.position = data.mousePosition;
-  } else if(data.newColor) {
+    phone.x = data.x;
+    phone.y = data.y;
+  } else if(data.cmd == CMD_COLOR) {
     phone.color = color(random(255), random(255), random(255));
   }
 });
@@ -63,7 +69,7 @@ function drawCubes() {
 
   for(var id in phones) {
     var phone = phones[id];
-    if (phone.position != undefined) {
+    if (phone.x) {
       push();
 
       // fade cube out when is inactive
@@ -74,12 +80,13 @@ function drawCubes() {
         shader(fx);
         noStroke();
         directionalLight(255, 255, 255, -1, -1, -1);
-        translate(phone.position.x * width, phone.position.y * height);
+        translate(phone.x * width, phone.y * height);
         rotateX(frameCount * 0.01);
         box(50);
       }
       else {
-        phone.position = undefined;
+        phone.x = undefined;
+        phone.y = undefined;
       }
 
       pop();

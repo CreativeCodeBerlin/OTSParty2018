@@ -1,4 +1,10 @@
 var phones = {};
+var pg;
+
+var CMD_START = 0;
+var CMD_MOVE = 1;
+var CMD_END = 2;
+var CMD_COLOR = 3;
 
 // --- sockets ---
 var socket = io();
@@ -12,14 +18,30 @@ socket.on('reload', function(piecename) {
   location.reload();
 });
 
-socket.on('dataChannel1', function(data) {
-  if (data.mousePosition != undefined) {
-    phones[data.id] = {
-      last: new Date().getTime(),
-      position: data.mousePosition
-    };
+var processData = function(data) {
+  if(phones[data.id] == undefined) {
+    phones[data.id] = { };
   }
-});
+
+  switch(data.cmd) {
+    case CMD_MOVE:
+    case CMD_END:
+      pg.stroke(255, 150);
+      pg.line(
+        data.x * width,
+        data.y * height,
+        phones[data.id].x * width,
+        phones[data.id].y * height);
+
+      break;
+  }
+
+  phones[data.id].x = data.x;
+  phones[data.id].y = data.y;
+  phones[data.id].last = new Date().getTime();
+}
+
+socket.on('dataChannel1', processData);
 
 /* There are 3 channels to send data through sockets.
  * You can use them as you want.
@@ -32,36 +54,49 @@ socket.on('dataChannel1', function(data) {
 
 function setup() {
   createCanvas(windowWidth, windowHeight);
+  pg = createGraphics(windowWidth, windowHeight);
 }
 
 function windowResized() {
   resizeCanvas(windowWidth, windowHeight);
 }
 
+function emit(cmd) {
+  // send the input data to the display using dataChannel1
+  var data = {
+    id: socket.id,
+    cmd: cmd,
+    x: mouseX / width,
+    y: mouseY / height
+  };
+  socket.emit('dataChannel1', data);
+  // data is not sent to self, so we simulate that here:
+  processData(data);
+}
+
 function touchStarted() {
   frameRate(15);
+  emit(CMD_START);
+}
+
+function touchMoved() {
+  emit(CMD_MOVE);
 }
 
 function touchEnded() {
   frameRate(60);
+  emit(CMD_END);
 }
 
 
 function draw() {
   background(17);
+  image(pg, 0, 0);
   noStroke();
   fill(255);
 
   if (mouseIsPressed) {
     ellipse(mouseX, mouseY, 80, 80);
-
-    // send the input data to the display using dataChannel1
-    socket.emit('dataChannel1', {
-      id: socket.id,
-      mousePosition: {
-        x:mouseX / width,
-        y:mouseY / height }
-    });
   }
 
   drawPlayers();
@@ -88,6 +123,6 @@ function drawPlayers() {
 function b1() {
   socket.emit('dataChannel1', {
     id: socket.id,
-    newColor: true
+    cmd: CMD_COLOR
   });
 }
