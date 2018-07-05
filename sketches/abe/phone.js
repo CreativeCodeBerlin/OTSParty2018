@@ -9,6 +9,9 @@ var CMD_COLOR = 3;
 // --- sockets ---
 var socket = io();
 
+screen.lockOrientationUniversal = screen.lockOrientation || screen.mozLockOrientation || screen.msLockOrientation;
+screen.lockOrientationUniversal("landscape-primary");
+
 socket.on('connected', function(id) {
   console.log('connected with id:', id);
 });
@@ -59,6 +62,9 @@ function setup() {
 
 function windowResized() {
   resizeCanvas(windowWidth, windowHeight);
+  var newPG = createGraphics(windowWidth, windowHeight);
+  newPG.image(pg, 0, 0, newPG.width, newPG.height);
+  pg = newPG;
 }
 
 function emit(cmd) {
