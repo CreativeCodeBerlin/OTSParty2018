@@ -11,7 +11,8 @@ socket.on('reload', function(piecename) {
 
 var config = {
 	maxInputTime: 2500,
-   maxOffCount: 80*3
+   maxOffCount: 80*3,
+	motionFactor: 2.5,
 }
 
 var Phone = class Phone {
@@ -23,7 +24,7 @@ var Phone = class Phone {
 
 	pushPoint(point) {
 		this.lastInput = new Date().getTime();
-  		this.point = [point.x * 2, point.y *2, 0];
+  		this.point = [point.x * config.motionFactor, point.y * config.motionFactor, 0];
 	}
 
    update(now) {
@@ -112,10 +113,10 @@ var Point = class Point {
          }
 
          //calculate z
-         targetpoint[2] = Math.sin( (100 * this.i + now) / 1000.0 );
+         targetpoint[2] = Math.sin( (300 * this.i + now) / 2000.0 ) * 1.5 - 0.3;
 
          // interpolate for a smoth movment
-         this.lastPoint = interpolate(this.lastPoint, targetpoint, .3);
+         this.lastPoint = interpolate(this.lastPoint, targetpoint, .1);
       }
    }
 

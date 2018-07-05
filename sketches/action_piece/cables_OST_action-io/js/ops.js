@@ -1,23 +1,25 @@
 "use strict";
 
 var Ops=Ops || {};
-Ops.Ui=Ops.Ui || {};
 Ops.Gl=Ops.Gl || {};
+Ops.Ui=Ops.Ui || {};
+Ops.Gl2=Ops.Gl2 || {};
+Ops.Math=Ops.Math || {};
+Ops.Vars=Ops.Vars || {};
 Ops.User=Ops.User || {};
 Ops.Anim=Ops.Anim || {};
-Ops.Vars=Ops.Vars || {};
-Ops.Math=Ops.Math || {};
-Ops.Array=Ops.Array || {};
-Ops.Patch=Ops.Patch || {};
 Ops.Color=Ops.Color || {};
+Ops.Array=Ops.Array || {};
 Ops.Value=Ops.Value || {};
-Ops.Trigger=Ops.Trigger || {};
+Ops.Patch=Ops.Patch || {};
 Ops.Boolean=Ops.Boolean || {};
-Ops.Gl.Matrix=Ops.Gl.Matrix || {};
-Ops.Gl.Meshes=Ops.Gl.Meshes || {};
+Ops.Trigger=Ops.Trigger || {};
 Ops.Gl.Shader=Ops.Gl.Shader || {};
+Ops.Gl.Meshes=Ops.Gl.Meshes || {};
+Ops.Gl.Matrix=Ops.Gl.Matrix || {};
 Ops.User.action=Ops.User.action || {};
 Ops.Gl.Geometry=Ops.Gl.Geometry || {};
+Ops.Gl2.ForceField=Ops.Gl2.ForceField || {};
 
 //----------------
 
@@ -5217,9 +5219,11 @@ var outArr=op.outArray("Array");
 
 var arr=[];
 inReset.onTriggered=reset;
-inLength.onChange=reset;
 inDefaultValue.onChange=reset;
-reset();
+inLength.onChange=function() {
+    if (inLength.get()!=arr.length)
+        reset();
+}
 
 function reset()
 {
@@ -5237,12 +5241,1063 @@ function reset()
     outArr.set(arr);
 }
 
-
+reset();
 
 
 };
 
 Ops.Array.Array.prototype = new CABLES.Op();
+
+//----------------
+
+
+
+// **************************************************************
+// 
+// Ops.Gl2.ForceField.ForceFieldSimulationParticles
+// 
+// **************************************************************
+
+Ops.Gl2.ForceField.ForceFieldSimulationParticles = function()
+{
+Op.apply(this, arguments);
+var op=this;
+var attachments={};
+attachments["flowfield_vert"]="bool respawn=false;\n// respawn\n\n\n// respawn=(attrVertIndex> MOD_spawnFrom && attrVertIndex<MOD_spawnTo);\n\nif(attrVertIndex> MOD_spawnFrom && attrVertIndex<MOD_spawnTo)\n{\n    respawn=true;\n}\n\n\n// float respawn=(1.0-step(MOD_spawnFrom,attrVertIndex))*\n    // (step(MOD_spawnTo,attrVertIndex));\n\n\n// if(!respawn)\n{\n// calculate position...\n\n    col=rndpos+0.5;\n    \n    // bool respawn=false;\n    vec3 velocity=vec3(0.0);\n    \n    for(int i=0;i<NUM_FORCES;i++)\n    {\n        if(forces[i].time<MOD_time)continue;\n    \n        vec3 vecToOrigin=inPos-forces[i].pos;\n        float dist=abs(length(vecToOrigin));\n    \n        if(forces[i].range > dist)\n        {\n            // velocity=vec3(11.0,11.0,11.0);\n    \n            float distAlpha = (forces[i].range - dist) / forces[i].range;\n    \n            // if (abs(distAlpha) > 0.98)\n            // {\n                // respawn=true;\n            // }\n    \n            vec3 vecNormal=normalize(vecToOrigin);\n    \n            velocity += (vecNormal * distAlpha * forces[i].attraction )*MOD_timeDiff;\n    \n            vec3 tangentForce=vec3(\n                vecNormal.y,\n                -vecNormal.x,\n                -vecNormal.z\n                );\n\n            float f=distAlpha * forces[i].angle;\n\n            velocity+=(tangentForce*f)*MOD_timeDiff;\n        }\n    }\n    \n    outLife=life;\n    \n    if(MOD_time-life.x>MOD_lifeTime)\n    {\n        outLife.x=MOD_time;\n        // respawn=;\n    }\n    \n    outPos=inPos+velocity;\n\n    #ifdef POINTMATERIAL\n        float lifeElapsed=(MOD_time-life.x)/MOD_lifeTime;\n        sizeMultiply *= smoothstep(0.0, MOD_fadeinout, lifeElapsed) * (1.0 - smoothstep(1.0-MOD_fadeinout, 1.0, lifeElapsed));\n    #endif\n}\n\n\nif(respawn)\n{\n    outPos.xyz=vec3(0.0);\n    int ind=int( random(vec2(MOD_time+rndpos.y,rndpos.x+MOD_time))*MOD_numSpawns );\n    outPos=MOD_spawnPositions[ind];\n\n    float spawnAreaSize=1.3;\n    outPos.x+=MOD_sizeX*random(vec2(MOD_time+rndpos.y,rndpos.x+MOD_time))-MOD_sizeX/2.0;\n    outPos.y+=MOD_sizeY*random(vec2(rndpos.y,rndpos.x+MOD_time))-MOD_sizeY/2.0;\n    outPos.z+=MOD_sizeZ*random(vec2(MOD_time+rndpos.y,rndpos.x))-MOD_sizeZ/2.0;\n\n\n\n    // outPos=(\n    //     2.0*vec3(\n    //     (random(vec2(MOD_time+rndpos.y,rndpos.x))-0.5),\n    //     (random(vec2(MOD_time+rndpos.z,rndpos.x))-0.5),\n    //     (random(vec2(rndpos.x,MOD_time+rndpos.z))-0.5)\n    //     ));\n\n    // outPos.x*=MOD_sizeX;\n    // outPos.y*=MOD_sizeY;\n    // outPos.z*=MOD_sizeZ;\n    // outPos+=MOD_emitterPos;\n    outLife.x=MOD_time;\n    \n    #ifdef POINTMATERIAL\n        sizeMultiply =0.0;\n    #endif\n\n}\n\npos=vec4(outPos,1.0);\n";
+attachments["flowfield_head_vert"]="#define NUM_FORCES 80\n\nIN vec3 rndpos;\nOUT vec3 col;\n\nUNI vec3 MOD_emitterPos;\n\nUNI float MOD_time;\nUNI float MOD_sizeX;\nUNI float MOD_sizeY;\nUNI float MOD_sizeZ;\nUNI float MOD_timeDiff;\nUNI float MOD_lifeTime;\nUNI float MOD_fadeinout;\nUNI float MOD_spawnTo;\nUNI float MOD_spawnFrom;\n\n\nIN float timeOffset;\n\nIN vec3 life;\nOUT vec3 outLife;\n\nIN vec3 inPos;\nOUT vec3 outPos;\n\nstruct force\n{\n    vec3 pos;\n    float attraction;\n    float angle;\n    float range;\n    float time;\n};\n\n\nUNI force forces[NUM_FORCES];\n\nUNI vec3 MOD_spawnPositions[32];\nUNI float MOD_numSpawns;\n\n\n\nfloat random(vec2 co)\n{\n    return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453);\n}\n";
+op.name="ForceFieldParticleEmitter";
+
+const render=op.inFunction("render");
+const resetButton=op.inFunctionButton("Reset");
+const inSizeX=op.inValue("Size Area X",3);
+const inSizeY=op.inValue("Size Area Y",3);
+const inSizeZ=op.inValue("Size Area Z",3);
+const numPoints=op.inValue("Particles",300);
+const speed=op.inValue("Speed",0.2);
+const lifetime=op.inValue("Lifetime",5);
+const fadeInOut=op.inValueSlider("Fade Birth Death",0.2);
+const show=op.inValueBool("Show");
+const posX=op.inValue("Pos X");
+const posY=op.inValue("Pos Y");
+const posZ=op.inValue("Pos Z");
+const spawns=op.inArray("Spawn Positions");
+
+var cgl=op.patch.cgl;
+var shaderModule=null;
+var bufferB=null;
+var verts=null;
+var geom=null;
+var mesh=null;
+var shader=null;
+
+numPoints.onChange=reset;
+inSizeX.onChange=reset;
+inSizeY.onChange=reset;
+inSizeZ.onChange=reset;
+resetButton.onTriggered=reset;
+
+const id=CABLES.generateUUID();
+
+var lastTime=0;
+var mark=new CGL.Marker(cgl);
+var needsRebuild=false;
+var life;
+
+function reset()
+{
+    needsRebuild=true;
+}
+
+function doReset()
+{
+    // var stopwatch=new CABLES.StopWatch();
+    // mesh=null;
+    needsRebuild=false;
+    var i=0;
+    var num=Math.floor(numPoints.get())*3;
+    if(!verts || verts.length!=num) verts=new Float32Array(num);
+    if(!bufferB || bufferB.length!=num)bufferB=new Float32Array(num);
+
+    // stopwatch.stop('init');
+
+    var sizeX=inSizeX.get();
+    var sizeY=inSizeY.get();
+    var sizeZ=inSizeZ.get();
+    
+    var pX=posX.get();
+    var pY=posY.get();
+    var pZ=posZ.get();
+    var vl=verts.length;
+    for(i=0;i<vl;i+=3)
+    {
+        verts[i+0]=(Math.random()-0.5)*sizeX+pX;
+        verts[i+1]=(Math.random()-0.5)*sizeY+pY;
+        verts[i+2]=(Math.random()-0.5)*sizeZ+pZ;
+        // verts[i+2]=0.0;
+
+        bufferB[i+0]=(Math.random()-0.5)*sizeX+pX;
+        bufferB[i+1]=(Math.random()-0.5)*sizeY+pY;
+        bufferB[i+2]=(Math.random()-0.5)*sizeZ+pZ;
+        // bufferB[i+2]=0.0;
+    }
+    
+    // stopwatch.stop('randoms');
+
+    if(!geom)geom=new CGL.Geometry();
+    geom.setPointVertices(verts);
+    
+    // stopwatch.stop('geom');
+
+    vl=(verts.length/3)*2;
+    for(i=0;i<vl;i+=2)
+    {
+        geom.texCoords[i]=Math.random();
+        geom.texCoords[i+1]=Math.random();
+    }
+    
+    // stopwatch.stop('tc');
+
+    if(!mesh)
+    {
+        mesh =new CGL.Mesh(cgl,geom,cgl.gl.POINTS);
+
+        mesh.addVertexNumbers=true;
+        
+
+
+        op.log("NEW MESH");
+    }
+    else
+    {
+        mesh.unBind();
+    }
+    mesh.addVertexNumbers=true;
+    mesh._verticesNumbers=null;
+    mesh.setGeom(geom);
+    
+    // stopwatch.stop('mesh');
+
+    // mesh.updateVertices(geom);
+
+    // op.log("set geom",mesh._attributes.length);
+    // op.log("set geom",mesh._attributes.length);
+
+
+    // buffB = cgl.gl.createBuffer();
+    // cgl.gl.bindBuffer(cgl.gl.ARRAY_BUFFER, buffB);
+    // cgl.gl.bufferData(cgl.gl.ARRAY_BUFFER, bufferB, cgl.gl.DYNAMIC_COPY);
+    // buffB.itemSize = 3;
+    // buffB.numItems = bufferB.length/3;
+
+    mesh.setAttribute("rndpos",bufferB,3);
+
+
+    op.log("Reset particles",num,numPoints.get());
+
+    mesh.removeFeedbacks();
+// stopwatch.stop('attribfeedbacks');
+
+
+    if(!life || life.length!=num) life=new Float32Array(num);
+    var lt=lifetime.get();
+    var time=op.patch.freeTimer.get();
+
+    for(i=0;i<num;i+=3)
+    {
+        life[i]=op.patch.freeTimer.get()-Math.random()*lt;
+        life[i+1]=time;
+        life[i+2]=time;
+    }
+    
+    // stopwatch.stop('life');
+
+    // console.log(op.patch.freeTimer.get(),life[0],bufferB[0]);
+
+    // mesh.setAttribute("life",life,3);
+    // mesh.setAttributeFeedback("life","outLife",life),
+
+
+
+
+
+    mesh.setFeedback(
+        mesh.setAttribute("inPos",bufferB,3),
+        "outPos",bufferB );
+
+
+    mesh.setFeedback(
+        mesh.setAttribute("life",life,3),
+        "outLife",life );
+
+
+        // feebackOutpos.buffer=buffB;
+
+
+
+    // var timeOffsetArr=new Float32Array(num/3);
+    // for(i=0;i<num;i++)timeOffsetArr[i]=Math.random();
+
+    // mesh.setAttribute("timeOffset",timeOffsetArr,1);
+
+    // if(feebackOutpos)feebackOutpos.buffer=buffB;
+}
+
+reset();
+
+var numForces=0;
+var forceUniforms=[];
+var firstTime=true;
+
+
+function removeModule()
+{
+    if(shader && shaderModule)
+    {
+        shader.removeModule(shaderModule);
+        shader=null;
+    }
+}
+render.onLinkChanged=removeModule;
+
+
+var particleSpawnStart=0;
+var uniTime=null;
+var uniSize=null;
+var uniSizeX=null;
+var uniSizeY=null;
+var uniSizeZ=null;
+var uniTimeDiff=null;
+var uniPos=null;
+var uniLifetime=null;
+var uniFadeInOut=null;
+var uniSpawnFrom=null;
+var uniSpawnTo=null;
+var uniSpawnPositions=null;
+var uniNumSpawns=null;
+
+render.onTriggered=function()
+{
+    if(needsRebuild)doReset();
+    var time=op.patch.freeTimer.get();
+    var timeDiff=time-lastTime;
+
+    if(cgl.getShader()!=shader)
+    {
+        if(shader) removeModule();
+        shader=cgl.getShader();
+        shader.glslVersion=300;
+        shaderModule=shader.addModule(
+            {
+                title:op.objName,
+                name:'MODULE_VERTEX_POSITION',
+                srcHeadVert:attachments.flowfield_head_vert,
+                srcBodyVert:attachments.flowfield_vert,
+                priority:-2,
+
+            });
+
+        uniTime=new CGL.Uniform(shader,'f',shaderModule.prefix+'time',0);
+        uniPos=new CGL.Uniform(shader,'3f',shaderModule.prefix+'emitterPos',0);
+        uniSizeX=new CGL.Uniform(shader,'f',shaderModule.prefix+'sizeX',inSizeX.get());
+        uniSizeY=new CGL.Uniform(shader,'f',shaderModule.prefix+'sizeY',inSizeY.get());
+        uniSizeZ=new CGL.Uniform(shader,'f',shaderModule.prefix+'sizeZ',inSizeZ.get());
+        uniTimeDiff=new CGL.Uniform(shader,'f',shaderModule.prefix+'timeDiff',0);
+        uniLifetime=new CGL.Uniform(shader,'f',shaderModule.prefix+'lifeTime',lifetime);
+        uniFadeInOut=new CGL.Uniform(shader,'f',shaderModule.prefix+'fadeinout',fadeInOut);
+        
+        uniSpawnPositions=new CGL.Uniform(shader,'3f[]',shaderModule.prefix+'spawnPositions',[]);
+        uniNumSpawns=new CGL.Uniform(shader,'f',shaderModule.prefix+'numSpawns',0);
+
+
+        uniSpawnFrom=new CGL.Uniform(shader,'f',shaderModule.prefix+'spawnFrom',0);
+        uniSpawnTo=new CGL.Uniform(shader,'f',shaderModule.prefix+'spawnTo',0);
+    }
+
+    if(!shader)return;
+
+    for(var i=0;i<CABLES.forceFieldForces.length;i++)
+    {
+        var force=CABLES.forceFieldForces[i];
+        if(force)
+        if(!force.hasOwnProperty(id+"uniRange"))
+        {
+            force[id+'uniRange']=new CGL.Uniform(shader,'f','forces['+i+'].range',force.range);
+            force[id+'uniAttraction']=new CGL.Uniform(shader,'f','forces['+i+'].attraction',force.attraction);
+            force[id+'uniAngle']=new CGL.Uniform(shader,'f','forces['+i+'].angle',force.angle);
+            force[id+'uniPos']=new CGL.Uniform(shader,'3f','forces['+i+'].pos',force.pos);
+            force[id+'uniTime']=new CGL.Uniform(shader,'f','forces['+i+'].time',time);
+        }
+        else
+        {
+            force[id+'uniRange'].setValue(force.range);
+            force[id+'uniAttraction'].setValue(force.attraction);
+            force[id+'uniAngle'].setValue(force.angle);
+            force[id+'uniPos'].setValue(force.pos);
+            force[id+'uniTime'].setValue(time);
+        }
+    }
+
+    uniSizeX.setValue(inSizeX.get());
+    uniSizeY.setValue(inSizeY.get());
+    uniSizeZ.setValue(inSizeZ.get());
+    uniTimeDiff.setValue(timeDiff*(speed.get()));
+    uniTime.setValue(time);
+
+
+
+    uniPos.setValue([posX.get(),posY.get(),posZ.get()]);
+
+    if(mesh) mesh.render(shader);
+
+    // console.log( '1',mesh._bufVertexAttrib );
+    // console.log( '1',feebackOutpos.buffer );
+
+    // var t=mesh._bufVertexAttrib.buffer;
+    // mesh._bufVertexAttrib.buffer=feebackOutpos.buffer;
+    // feebackOutpos.buffer=t;
+    lastTime=op.patch.freeTimer.get();
+
+
+    if(show.get())
+    {
+        cgl.pushModelMatrix();
+        mat4.translate(cgl.mvMatrix,cgl.mvMatrix,[posX.get(),posY.get(),posZ.get()]);
+        mark.draw(cgl);
+        cgl.popModelMatrix();
+    }
+    
+    uniSpawnPositions.set(spawns.get() || []);
+    var numSpawnPos=( (spawns.get()||[]).length)/3;
+    // op.log('numSpawnPos',numSpawnPos);
+    uniNumSpawns.set( numSpawnPos );
+    
+
+    if(particleSpawnStart>numPoints.get())particleSpawnStart=0;
+
+    var perSecond=numPoints.get()/lifetime.get();
+    var numSpawn=perSecond*Math.min(1/33,timeDiff);
+    uniSpawnFrom.setValue(particleSpawnStart);
+    uniSpawnTo.setValue(particleSpawnStart+numSpawn);
+
+    // op.log(particleSpawnStart,particleSpawnStart+numSpawn);
+    // if(numSpawn>30)
+    // console.log("should spawn",numSpawn);
+    particleSpawnStart+=numSpawn;
+
+
+
+
+
+};
+
+
+};
+
+Ops.Gl2.ForceField.ForceFieldSimulationParticles.prototype = new CABLES.Op();
+
+//----------------
+
+
+
+// **************************************************************
+// 
+// Ops.Gl.Shader.PointMaterial
+// 
+// **************************************************************
+
+Ops.Gl.Shader.PointMaterial = function()
+{
+Op.apply(this, arguments);
+var op=this;
+var attachments={};
+attachments["shader_frag"]="precision highp float;\n\n{{MODULES_HEAD}}\n\nIN vec2 texCoord;\n#ifdef HAS_TEXTURES\n   \n   #ifdef HAS_TEXTURE_DIFFUSE\n       uniform sampler2D diffTex;\n   #endif\n   #ifdef HAS_TEXTURE_MASK\n       uniform sampler2D texMask;\n   #endif\n#endif\nuniform float r;\nuniform float g;\nuniform float b;\nuniform float a;\n\nvoid main()\n{\n    {{MODULE_BEGIN_FRAG}}\n\n    vec4 col=vec4(r,g,b,a);\n\n    #ifdef HAS_TEXTURES\n\n        #ifdef HAS_TEXTURE_MASK\n            float mask=texture2D(texMask,vec2(gl_PointCoord.x,(1.0-gl_PointCoord.y))).r;\n        #endif\n\n        #ifdef HAS_TEXTURE_DIFFUSE\n\n            #ifdef LOOKUP_TEXTURE\n                col=texture2D(diffTex,texCoord);\n            #endif\n            #ifndef LOOKUP_TEXTURE\n                col=texture2D(diffTex,vec2(gl_PointCoord.x,(1.0-gl_PointCoord.y)));\n            #endif\n\n            #ifdef COLORIZE_TEXTURE\n              col.r*=r;\n              col.g*=g;\n              col.b*=b;\n            #endif\n        #endif\n        col.a*=a;\n    #endif\n\n    {{MODULE_COLOR}}\n\n    #ifdef MAKE_ROUND\n        if ((gl_PointCoord.x-0.5)*(gl_PointCoord.x-0.5) + (gl_PointCoord.y-0.5)*(gl_PointCoord.y-0.5) > 0.25) discard; //col.a=0.0;\n    #endif\n\n    #ifdef HAS_TEXTURE_MASK\n        col.a=mask;\n    #endif\n\n\n    // #ifdef RANDOMIZE_COLOR\n        // col.rgb*=fract(sin(dot(texCoord.xy ,vec2(12.9898,78.233))) * 43758.5453);\n    // #endif\n\n\n\n    outColor = col;\n}\n";
+attachments["shader_vert"]="{{MODULES_HEAD}}\nIN vec3 vPosition;\nIN vec2 attrTexCoord;\n\nOUT vec3 norm;\n#ifdef HAS_TEXTURES\n    OUT vec2 texCoord;\n#endif\n\nUNI mat4 projMatrix;\nUNI mat4 modelMatrix;\nUNI mat4 viewMatrix;\n\nUNI float pointSize;\nUNI vec3 camPos;\n\nUNI float canvasWidth;\nUNI float canvasHeight;\nUNI float camDistMul;\n\nUNI float randomSize;\n\nIN float attrVertIndex;\n\nfloat rand(float n){return fract(sin(n) * 43758.5453123);}\n\n#define POINTMATERIAL\n\nvoid main()\n{\n    float psMul=sqrt(canvasWidth*canvasHeight)*0.001+0.00000000001;\n    float sizeMultiply=1.0;\n\n    #ifdef HAS_TEXTURES\n        texCoord=attrTexCoord;\n    #endif\n    \n    mat4 mMatrix=modelMatrix;\n\n    vec4 pos = vec4( vPosition, 1. );\n\n    {{MODULE_VERTEX_POSITION}}\n\n    vec4 model=mMatrix * pos;\n\n    psMul+=rand(attrVertIndex)*randomSize;\n\n    psMul*=sizeMultiply;\n\n    #ifndef SCALE_BY_DISTANCE\n        gl_PointSize = pointSize * psMul;\n    #endif\n    #ifdef SCALE_BY_DISTANCE\n        float cameraDist = distance(model.xyz, camPos);\n        gl_PointSize = (pointSize / cameraDist) * psMul;\n    #endif\n\n\n\n\n    gl_Position = projMatrix * viewMatrix * model;\n\n\n}\n";
+var cgl=op.patch.cgl;
+
+var render=op.addInPort(new Port(op,"render",OP_PORT_TYPE_FUNCTION) );
+var trigger=op.addOutPort(new Port(op,"trigger",OP_PORT_TYPE_FUNCTION));
+var shaderOut=op.addOutPort(new Port(op,"shader",OP_PORT_TYPE_OBJECT));
+
+var pointSize=op.addInPort(new Port(op,"PointSize",OP_PORT_TYPE_VALUE));
+var randomSize=op.inValue("Random Size",0);
+
+var makeRound=op.addInPort(new Port(op,"Round",OP_PORT_TYPE_VALUE,{ display:'bool' }));
+var doScale=op.addInPort(new Port(op,"Scale by Distance",OP_PORT_TYPE_VALUE,{ display:'bool' }));
+var r=op.addInPort(new Port(op,"r",OP_PORT_TYPE_VALUE,{ display:'range',colorPick:'true' }));
+var g=op.addInPort(new Port(op,"g",OP_PORT_TYPE_VALUE,{ display:'range' }));
+var b=op.addInPort(new Port(op,"b",OP_PORT_TYPE_VALUE,{ display:'range' }));
+var a=op.addInPort(new Port(op,"a",OP_PORT_TYPE_VALUE,{ display:'range' }));
+var preMultipliedAlpha=op.addInPort(new Port(op,"preMultiplied alpha",OP_PORT_TYPE_VALUE,{ display:'bool' }));
+
+
+makeRound.set(true);
+doScale.set(false);
+pointSize.set(3);
+
+
+var shader=new CGL.Shader(cgl,'PointMaterial');
+shader.setModules(['MODULE_VERTEX_POSITION','MODULE_COLOR','MODULE_BEGIN_FRAG']);
+
+shader.define('MAKE_ROUND');
+
+var uniPointSize=new CGL.Uniform(shader,'f','pointSize',pointSize);
+var uniRandomSize=new CGL.Uniform(shader,'f','randomSize',randomSize);
+
+
+shaderOut.set(shader);
+shader.setSource(attachments.shader_vert,attachments.shader_frag);
+shader.glPrimitive=cgl.gl.POINTS;
+shader.bindTextures=bindTextures;
+shaderOut.ignoreValueSerialize=true;
+
+r.set(Math.random());
+g.set(Math.random());
+b.set(Math.random());
+a.set(1.0);
+
+r.uniform=new CGL.Uniform(shader,'f','r',r);
+g.uniform=new CGL.Uniform(shader,'f','g',g);
+b.uniform=new CGL.Uniform(shader,'f','b',b);
+a.uniform=new CGL.Uniform(shader,'f','a',a);
+
+var uniWidth=new CGL.Uniform(shader,'f','canvasWidth',cgl.canvasWidth);
+var uniHeight=new CGL.Uniform(shader,'f','canvasHeight',cgl.canvasHeight);
+
+render.onTriggered=doRender;
+
+var texture=op.inTexture("texture");
+var textureUniform=null;
+
+var textureMask=op.inTexture("Texture Mask");
+var textureMaskUniform=null;
+
+op.preRender=function()
+{
+    if(shader)shader.bind();
+    doRender();
+};
+
+function bindTextures()
+{
+    if(texture.get())
+    {
+        cgl.gl.activeTexture(cgl.gl.TEXTURE0);
+        cgl.gl.bindTexture(cgl.gl.TEXTURE_2D, texture.get().tex);
+    }
+    if(textureMask.get())
+    {
+        cgl.gl.activeTexture(cgl.gl.TEXTURE1);
+        cgl.gl.bindTexture(cgl.gl.TEXTURE_2D, textureMask.get().tex);
+    }
+}
+
+function doRender()
+{
+    uniWidth.setValue(cgl.canvasWidth);
+    uniHeight.setValue(cgl.canvasHeight);
+    
+    
+    cgl.setShader(shader);
+    bindTextures();
+    if(preMultipliedAlpha.get())cgl.gl.blendFunc(cgl.gl.ONE, cgl.gl.ONE_MINUS_SRC_ALPHA);
+
+    trigger.trigger();
+    if(preMultipliedAlpha.get())cgl.gl.blendFunc(cgl.gl.SRC_ALPHA,cgl.gl.ONE_MINUS_SRC_ALPHA);
+
+    cgl.setPreviousShader();
+}
+
+
+doScale.onValueChanged=function()
+{
+    if(doScale.get()) shader.define('SCALE_BY_DISTANCE');
+        else shader.removeDefine('SCALE_BY_DISTANCE');
+};
+
+makeRound.onValueChanged=function()
+{
+    if(makeRound.get()) shader.define('MAKE_ROUND');
+        else shader.removeDefine('MAKE_ROUND');
+};
+
+texture.onValueChanged=function()
+{
+    if(texture.get())
+    {
+        if(textureUniform!==null)return;
+        shader.removeUniform('diffTex');
+        shader.define('HAS_TEXTURE_DIFFUSE');
+        textureUniform=new CGL.Uniform(shader,'t','diffTex',0);
+    }
+    else
+    {
+        shader.removeUniform('diffTex');
+        shader.removeDefine('HAS_TEXTURE_DIFFUSE');
+        textureUniform=null;
+    }
+};
+
+textureMask.onValueChanged=function()
+{
+    if(textureMask.get())
+    {
+        if(textureMaskUniform!==null)return;
+        shader.removeUniform('texMask');
+        shader.define('HAS_TEXTURE_MASK');
+        textureMaskUniform=new CGL.Uniform(shader,'t','texMask',1);
+    }
+    else
+    {
+        shader.removeUniform('texMask');
+        shader.removeDefine('HAS_TEXTURE_MASK');
+        textureMaskUniform=null;
+    }
+};
+
+
+
+var colorizeTexture=op.addInPort(new Port(op,"colorizeTexture",OP_PORT_TYPE_VALUE,{ display:'bool' }));
+colorizeTexture.set(false);
+colorizeTexture.onValueChanged=function()
+{
+    if(colorizeTexture.get()) shader.define('COLORIZE_TEXTURE');
+        else shader.removeDefine('COLORIZE_TEXTURE');
+};
+
+var textureLookup=op.addInPort(new Port(op,"texture Lookup",OP_PORT_TYPE_VALUE,{ display:'bool' }));
+textureLookup.set(false);
+textureLookup.onValueChanged=function()
+{
+    if(textureLookup.get()) shader.define('LOOKUP_TEXTURE');
+        else shader.removeDefine('LOOKUP_TEXTURE');
+};
+
+
+
+};
+
+Ops.Gl.Shader.PointMaterial.prototype = new CABLES.Op();
+
+//----------------
+
+
+
+// **************************************************************
+// 
+// Ops.Gl2.ForceField.ForceFieldForce
+// 
+// **************************************************************
+
+Ops.Gl2.ForceField.ForceFieldForce = function()
+{
+Op.apply(this, arguments);
+var op=this;
+var attachments={};
+op.name="ForceFieldForce";
+
+var exec=op.inFunction("Exec");
+
+var range=op.inValue("Range Radius",1);
+var attraction=op.inValue("attraction");
+var angle=op.inValue("Angle");
+var show=op.inValueBool("Show");
+
+var posX=op.inValue("Pos X");
+var posY=op.inValue("Pos Y");
+var posZ=op.inValue("Pos Z");
+
+var next=op.outFunction("next");
+
+var forceObj={};
+var mesh=null;
+var pos=[0,0,0];
+var cgl=op.patch.cgl;
+
+range.onChange=updateForceObject;
+attraction.onChange=updateForceObject;
+angle.onChange=updateForceObject;
+posX.onChange=updateForceObject;
+posY.onChange=updateForceObject;
+posZ.onChange=updateForceObject;
+
+function updateForceObject()
+{
+    forceObj.range=range.get();
+    forceObj.attraction=attraction.get();
+    forceObj.angle=angle.get();
+    forceObj.pos=pos;
+}
+
+op.onDelete=function()
+{
+    
+};
+
+var mark=new CGL.Marker(cgl);
+
+exec.onTriggered=function()
+{
+    if(show.get())
+    {
+        cgl.pushModelMatrix();
+
+        // if(!mesh)mesh=new CGL.WirePoint(cgl);
+        mat4.translate(cgl.mvMatrix,cgl.mvMatrix,[posX.get(),posY.get(),posZ.get()]);
+        // mesh.render(cgl,range.get()*2);
+        mark.draw(cgl);
+        cgl.popModelMatrix();
+    }
+
+    // vec3.transformMat4(pos, [posX.get(),posY.get(),posZ.get()], cgl.mvMatrix);
+    pos=[posX.get(),posY.get(),posZ.get()];
+
+    updateForceObject();
+
+    CABLES.forceFieldForces=CABLES.forceFieldForces||[];
+    CABLES.forceFieldForces.push(forceObj);
+    
+    next.trigger();
+    
+    CABLES.forceFieldForces.pop();
+    
+    if(CABLES.UI && gui.patch().isCurrentOp(op)) 
+        gui.setTransformGizmo(
+            {
+                posX:posX,
+                posY:posY,
+                posZ:posZ,
+            });
+};
+
+
+};
+
+Ops.Gl2.ForceField.ForceFieldForce.prototype = new CABLES.Op();
+
+//----------------
+
+
+
+// **************************************************************
+// 
+// Ops.Gl.Matrix.Translate
+// 
+// **************************************************************
+
+Ops.Gl.Matrix.Translate = function()
+{
+Op.apply(this, arguments);
+var op=this;
+var attachments={};
+
+var render=op.addInPort(new Port(op,"render",OP_PORT_TYPE_FUNCTION));
+var trigger=op.addOutPort(new Port(op,"trigger",OP_PORT_TYPE_FUNCTION));
+
+var cgl=op.patch.cgl;
+
+var x=op.addInPort(new Port(op,"x"));
+var y=op.addInPort(new Port(op,"y"));
+var z=op.addInPort(new Port(op,"z"));
+
+x.set(0.0);
+y.set(0.0);
+z.set(0.0);
+
+var vec=vec3.create();
+
+render.onTriggered=function()
+{
+    vec3.set(vec, x.get(),y.get(),z.get());
+    cgl.pushModelMatrix();
+    mat4.translate(cgl.mvMatrix,cgl.mvMatrix, vec);
+    trigger.trigger();
+    cgl.popModelMatrix();
+};
+
+
+};
+
+Ops.Gl.Matrix.Translate.prototype = new CABLES.Op();
+
+//----------------
+
+
+
+// **************************************************************
+// 
+// Ops.Gl.Matrix.OrbitControls
+// 
+// **************************************************************
+
+Ops.Gl.Matrix.OrbitControls = function()
+{
+Op.apply(this, arguments);
+var op=this;
+var attachments={};
+const render=op.addInPort(new Port(op,"render",OP_PORT_TYPE_FUNCTION));
+const minDist=op.addInPort(new Port(op,"min distance",OP_PORT_TYPE_VALUE));
+const maxDist=op.addInPort(new Port(op,"max distance",OP_PORT_TYPE_VALUE));
+const initialAxis=op.addInPort(new Port(op,"initial axis y",OP_PORT_TYPE_VALUE,{display:'range'}));
+const initialX=op.addInPort(new Port(op,"initial axis x",OP_PORT_TYPE_VALUE,{display:'range'}));
+const initialRadius=op.inValue("initial radius",0);
+
+const mul=op.addInPort(new Port(op,"mul",OP_PORT_TYPE_VALUE));
+
+const smoothness=op.inValueSlider("Smoothness",1.0);
+const restricted=op.addInPort(new Port(op,"restricted",OP_PORT_TYPE_VALUE,{display:'bool'}));
+
+const active=op.inValueBool("Active",true);
+
+const inReset=op.inFunctionButton("Reset");
+
+const allowPanning=op.inValueBool("Allow Panning",true);
+const allowZooming=op.inValueBool("Allow Zooming",true);
+const allowRotation=op.inValueBool("Allow Rotation",true);
+const pointerLock=op.inValueBool("Pointerlock",false);
+
+const speedX=op.inValue("Speed X",1);
+const speedY=op.inValue("Speed Y",1);
+
+const trigger=op.addOutPort(new Port(op,"trigger",OP_PORT_TYPE_FUNCTION));
+const outRadius=op.addOutPort(new Port(op,"radius",OP_PORT_TYPE_VALUE));
+const outYDeg=op.addOutPort(new Port(op,"Rot Y",OP_PORT_TYPE_VALUE));
+const outXDeg=op.addOutPort(new Port(op,"Rot X",OP_PORT_TYPE_VALUE));
+
+restricted.set(true);
+mul.set(1);
+minDist.set(0.05);
+maxDist.set(99999);
+
+inReset.onTriggered=reset;
+
+var cgl=op.patch.cgl;
+var eye=vec3.create();
+var vUp=vec3.create();
+var vCenter=vec3.create();
+var viewMatrix=mat4.create();
+var vOffset=vec3.create();
+
+initialAxis.set(0.5);
+
+
+var mouseDown=false;
+var radius=5;
+outRadius.set(radius);
+
+var lastMouseX=0,lastMouseY=0;
+var percX=0,percY=0;
+
+
+vec3.set(vCenter, 0,0,0);
+vec3.set(vUp, 0,1,0);
+
+var tempEye=vec3.create();
+var finalEye=vec3.create();
+var tempCenter=vec3.create();
+var finalCenter=vec3.create();
+
+var px=0;
+var py=0;
+
+var divisor=1;
+var element=null;
+updateSmoothness();
+
+op.onDelete=unbind;
+
+var doLockPointer=false;
+
+pointerLock.onChange=function()
+{
+    doLockPointer=pointerLock.get();
+    console.log("doLockPointer",doLockPointer);
+};
+
+function reset()
+{
+    px=px%(Math.PI*2);
+    py=py%(Math.PI*2);
+
+    percX=(initialX.get()*Math.PI*2);
+    percY=(initialAxis.get()-0.5);
+    radius=initialRadius.get();
+    eye=circlePos( percY );
+}
+
+function updateSmoothness()
+{
+    divisor=smoothness.get()*10+1.0;
+}
+
+smoothness.onChange=updateSmoothness;
+
+var initializing=true;
+
+function ip(val,goal)
+{
+    if(initializing)return goal;
+    return val+(goal-val)/divisor;
+}
+
+render.onTriggered=function()
+{
+    cgl.pushViewMatrix();
+
+    px=ip(px,percX);
+    py=ip(py,percY);
+    
+    outYDeg.set( (py+0.5)*180 );
+    outXDeg.set( (px)*180 );
+
+    eye=circlePos(py);
+
+    vec3.add(tempEye, eye, vOffset);
+    vec3.add(tempCenter, vCenter, vOffset);
+
+    finalEye[0]=ip(finalEye[0],tempEye[0]);
+    finalEye[1]=ip(finalEye[1],tempEye[1]);
+    finalEye[2]=ip(finalEye[2],tempEye[2]);
+    
+    finalCenter[0]=ip(finalCenter[0],tempCenter[0]);
+    finalCenter[1]=ip(finalCenter[1],tempCenter[1]);
+    finalCenter[2]=ip(finalCenter[2],tempCenter[2]);
+    
+    mat4.lookAt(viewMatrix, finalEye, finalCenter, vUp);
+    mat4.rotate(viewMatrix, viewMatrix, px, vUp);
+    mat4.multiply(cgl.vMatrix,cgl.vMatrix,viewMatrix);
+
+    trigger.trigger();
+    cgl.popViewMatrix();
+    initializing=false;
+};
+
+function circlePos(perc)
+{
+    if(radius<minDist.get()*mul.get())radius=minDist.get()*mul.get();
+    if(radius>maxDist.get()*mul.get())radius=maxDist.get()*mul.get();
+    
+    outRadius.set(radius*mul.get());
+    
+    var i=0,degInRad=0;
+    var vec=vec3.create();
+    degInRad = 360*perc/2*CGL.DEG2RAD;
+    vec3.set(vec,
+        Math.cos(degInRad)*radius*mul.get(),
+        Math.sin(degInRad)*radius*mul.get(),
+        0);
+    return vec;
+}
+
+function onmousemove(event)
+{
+    if(!mouseDown) return;
+
+    var x = event.clientX;
+    var y = event.clientY;
+    
+    var movementX=(x-lastMouseX)*speedX.get();
+    var movementY=(y-lastMouseY)*speedY.get();
+
+    if(doLockPointer)
+    {
+        movementX=event.movementX*mul.get();
+        movementY=event.movementY*mul.get();
+    }
+
+    if(event.which==3 && allowPanning.get())
+    {
+        vOffset[2]+=movementX*0.01*mul.get();
+        vOffset[1]+=movementY*0.01*mul.get();
+    }
+    else
+    if(event.which==2 && allowZooming.get())
+    {
+        radius+=(movementY)*0.05;
+        eye=circlePos(percY);
+    }
+    else
+    {
+        if(allowRotation.get())
+        {
+            percX+=(movementX)*0.003;
+            percY+=(movementY)*0.002;
+            
+            if(restricted.get())
+            {
+                if(percY>0.5)percY=0.5;
+                if(percY<-0.5)percY=-0.5;
+            }
+            
+        }
+    }
+
+    lastMouseX=x;
+    lastMouseY=y;
+}
+
+function onMouseDown(event)
+{
+    lastMouseX = event.clientX;
+    lastMouseY = event.clientY;
+    mouseDown=true;
+    
+    if(doLockPointer)
+    {
+        var el=op.patch.cgl.canvas;
+        el.requestPointerLock = el.requestPointerLock || el.mozRequestPointerLock || el.webkitRequestPointerLock;
+        if(el.requestPointerLock) el.requestPointerLock();
+        else console.log("no t found");
+        // document.addEventListener("mousemove", onmousemove, false);
+
+        document.addEventListener('pointerlockchange', lockChange, false);
+        document.addEventListener('mozpointerlockchange', lockChange, false);
+        document.addEventListener('webkitpointerlockchange', lockChange, false);
+    }
+}
+
+function onMouseUp()
+{
+    mouseDown=false;
+    // cgl.canvas.style.cursor='url(/ui/img/rotate.png),pointer';
+            
+    if(doLockPointer)
+    {
+        document.removeEventListener('pointerlockchange', lockChange, false);
+        document.removeEventListener('mozpointerlockchange', lockChange, false);
+        document.removeEventListener('webkitpointerlockchange', lockChange, false);
+
+        if(document.exitPointerLock) document.exitPointerLock();
+        document.removeEventListener("mousemove", onmousemove, false);
+    }
+}
+
+function lockChange()
+{
+    var el=op.patch.cgl.canvas;
+
+    if (document.pointerLockElement === el || document.mozPointerLockElement === el || document.webkitPointerLockElement === el)
+    {
+        document.addEventListener("mousemove", onmousemove, false);
+        console.log("listening...");
+    }
+}
+
+function onMouseEnter(e)
+{
+    // cgl.canvas.style.cursor='url(/ui/img/rotate.png),pointer';
+}
+
+initialRadius.onValueChange(function()
+{
+    // percX=(initialX.get()*Math.PI*2);
+    console.log('init radius');
+    radius=initialRadius.get();
+    reset();
+});
+
+initialX.onValueChange(function()
+{
+    px=percX=(initialX.get()*Math.PI*2);
+    
+});
+
+initialAxis.onValueChange(function()
+{
+    py=percY=(initialAxis.get()-0.5);
+    eye=circlePos( percY );
+});
+
+var onMouseWheel=function(event)
+{
+    if(allowZooming.get())
+    {
+        var delta=CGL.getWheelSpeed(event)*0.06;
+        radius+=(parseFloat(delta))*1.2;
+
+        eye=circlePos(percY);
+        event.preventDefault();
+    }
+};
+
+var ontouchstart=function(event)
+{
+    doLockPointer=false;
+    if(event.touches && event.touches.length>0) onMouseDown(event.touches[0]);
+};
+
+var ontouchend=function(event)
+{
+    doLockPointer=false;
+    onMouseUp();
+};
+
+var ontouchmove=function(event)
+{
+    doLockPointer=false;
+    if(event.touches && event.touches.length>0) onmousemove(event.touches[0]);
+};
+
+active.onChange=function()
+{
+    if(active.get())bind();
+        else unbind();
+}
+
+
+this.setElement=function(ele)
+{
+    unbind();
+    element=ele;
+    bind();
+}
+
+function bind()
+{
+    element.addEventListener('mousemove', onmousemove);
+    element.addEventListener('mousedown', onMouseDown);
+    element.addEventListener('mouseup', onMouseUp);
+    element.addEventListener('mouseleave', onMouseUp);
+    element.addEventListener('mouseenter', onMouseEnter);
+    element.addEventListener('contextmenu', function(e){e.preventDefault();});
+    element.addEventListener('wheel', onMouseWheel);
+
+    element.addEventListener('touchmove', ontouchmove);
+    element.addEventListener('touchstart', ontouchstart);
+    element.addEventListener('touchend', ontouchend);
+
+}
+
+function unbind()
+{
+    if(!element)return;
+    
+    element.removeEventListener('mousemove', onmousemove);
+    element.removeEventListener('mousedown', onMouseDown);
+    element.removeEventListener('mouseup', onMouseUp);
+    element.removeEventListener('mouseleave', onMouseUp);
+    element.removeEventListener('mouseenter', onMouseUp);
+    element.removeEventListener('wheel', onMouseWheel);
+
+    element.removeEventListener('touchmove', ontouchmove);
+    element.removeEventListener('touchstart', ontouchstart);
+    element.removeEventListener('touchend', ontouchend);
+}
+
+
+
+eye=circlePos(0);
+this.setElement(cgl.canvas);
+
+
+bind();
+
+initialX.set(0.25);
+initialRadius.set(0.05);
+
+
+};
+
+Ops.Gl.Matrix.OrbitControls.prototype = new CABLES.Op();
 
 //----------------
 
