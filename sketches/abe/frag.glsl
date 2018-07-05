@@ -15,6 +15,7 @@ void main(void) {
   if (uUseLighting) {
     gl_FragColor.rgb *= vLightWeighting;
   } 
-  float k = 1.0 + 0.5 * sin(t * 5.0);
-  gl_FragColor.rgb *= k;
+  float k = 0.1 * sin(t * 5.0 + vVertTexCoord.y * 5.0);
+  gl_FragColor.rgb *= 0.8;
+  gl_FragColor.rgb += vec3(k);
 }
