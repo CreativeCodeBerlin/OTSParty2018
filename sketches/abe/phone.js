@@ -9,9 +9,6 @@ var CMD_COLOR = 3;
 // --- sockets ---
 var socket = io();
 
-screen.lockOrientationUniversal = screen.lockOrientation || screen.mozLockOrientation || screen.msLockOrientation;
-screen.lockOrientationUniversal("landscape-primary");
-
 socket.on('connected', function(id) {
   console.log('connected with id:', id);
 });
