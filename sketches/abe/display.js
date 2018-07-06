@@ -2,12 +2,24 @@ var phones = {};
 var pg;
 var fx;
 var tex;
-var texNum = Math.floor(Math.random() * 40);
-var particles = [];
 
 var CMD_START = 0;
 var CMD_MOVE = 1;
 var CMD_END = 2;
+
+var tex = document.createElement('canvas');
+var img = new Image();
+img.onload = function() {
+  tex.width = img.width;
+  tex.height = img.height;
+  tex.getContext('2d').drawImage(img, 0, 0, img.width, img.height);
+}
+function loadRandomTexture() {
+  var n = Math.floor(Math.random() * 40);
+  img.src = 'media/' + (n < 10 ? '0' : '') + n + '.jpg';
+  console.log('load ' + img.src);
+}
+loadRandomTexture();
 
 // --- socket ---
 var socket = io();
@@ -26,98 +38,104 @@ socket.on('dataChannel1', function(data) {
 
   if(phones[data.id] == undefined) {
     phones[data.id] = {
-      color: color(random(255), random(255), random(255))
+      color: 0 //color(random(255), random(255), random(255))
     };
   }
   var phone = phones[data.id];
 
   if(data.cmd == CMD_START) {
-    phone.color = tex.get(
+    phone.color = tex.getContext('2d').getImageData(
       data.x * tex.width,
-      data.y * tex.height);
+      data.y * tex.height, 1, 1).data;
   }
   if(data.cmd <= CMD_END) {
-    phone.last = new Date().getTime();
-    phone.x = data.x;
-    phone.y = data.y;
-    particles.push({
-      x: phone.x,
-      y: phone.y,
-      color: phone.color,
-      age: 1.0
-    });
+    var c = new THREE.Color(
+      phone.color[0] / 255,
+      phone.color[1] / 255,
+      phone.color[2] / 255
+    );
+    var material = new THREE.MeshPhongMaterial( { color: c } );
+    var cube = new THREE.Mesh( cubeGeo, material );
+    cube.position.x = data.x * 2 - 1;
+    cube.position.y = 1 - data.y * 2;
+    cube.userData.age = 0.2;
+    scene.add( cube );
   }
 });
 
-// --- p5.js ---
+// --- three.js ---
 
-function preload() {
-  var r = Math.random();
-  fx = loadShader('vert.glsl?r='+r, 'frag.glsl?r='+r);
-  tex = loadImage('media/' + nf(texNum, 2) + '.jpg');
+var scene = new THREE.Scene();
+var camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
+
+var renderer = new THREE.WebGLRenderer({
+  preserveDrawingBuffer: true
+});
+renderer.setSize( window.innerWidth, window.innerHeight );
+renderer.autoClearColor = false;
+renderer.antialias = true;
+document.body.appendChild( renderer.domElement );
+
+var cubeGeo = new THREE.BoxGeometry( 3, 0.3, 0.3 );
+
+camera.position.z = 1;
+
+var light = new THREE.PointLight( 0xffffff, 1.2 );
+light.position.set(1, 1, 1);
+scene.add( light );
+
+window.addEventListener( 'resize', onWindowResize, false );
+
+function onWindowResize() {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize( window.innerWidth, window.innerHeight );
 }
 
-function setup() {
-  createCanvas(windowWidth, windowHeight, WEBGL);
-  pg = createGraphics(windowWidth, windowHeight, WEBGL);
-  //pg.setAttributes('antialias', true);
-  pg.shader(fx);
-}
+function animate() {
+  requestAnimationFrame( animate );
 
-function windowResized() {
-  resizeCanvas(windowWidth, windowHeight);
-  var newPG = createGraphics(windowWidth, windowHeight);
-  newPG.image(pg, 0, 0, newPG.width, newPG.height);
-  pg = newPG;
-}
+  var t = 0.001 * Date.now();
 
-function draw() {
-  var t = millis() * 0.001;
-  fx.setUniform('t', t);
+  var old = [];
+  scene.traverse( function( o ) {
+    if ( o.isMesh === true ) {
 
-  if(frameCount % (60 * 15) == 0) {
-    texNum = floor(random(40));
-    tex = loadImage('media/' + nf(texNum, 2) + '.jpg');
+      var c = tex.getContext('2d').getImageData(
+        (o.position.x * 0.5 + 0.5) * tex.width,
+        (o.position.y * 0.5 + 0.5) * tex.height, 1, 1).data;
+
+      var a = c[0] + c[1] + c[2];
+      o.position.x += 0.01 * Math.cos(a);
+      o.position.y += 0.01 * Math.sin(a);
+
+      o.rotation.x += 0.03;
+      o.rotation.y += 0.05;
+
+      o.userData.age *= 0.85 + 0.1 * Math.sin(t * 1.7);
+      var s = o.userData.age * (0.5 + 0.4 * Math.sin(t*0.5));
+      if(t % 1 < 0.05) {
+        var s0 = Math.min(1, s * Math.abs(Math.tan(t)));
+        var s1 = Math.min(0.1, s * Math.abs(Math.tan(t-3)));
+        o.scale.set(s0, s1, s1);
+      } else {
+        o.scale.set(s, s, s);
+      }
+      if(s < 0.01) {
+        old.push(o);
+      }
+      //o.position.x = 1 * Math.sin(t);
+    }
+  });
+  for(var o in old) {
+    scene.remove(old[o]);
   }
 
-  drawCubes();
+  renderer.render( scene, camera );
 }
+animate();
 
-// draw a cube at the position of each phone input
-function drawCubes() {
-  pg.clear();
-  pg.push();
-  pg.translate(-width/2, -height/2);
-  pg.directionalLight(100, 100, 100, -1, -1, -1);
-  pg.noStroke();
+window.setInterval(function() {
+  loadRandomTexture();
+}, 15000)
 
-  for(var id in particles) {
-
-    var p = particles[id];
-    p.age *= 0.9;
-    var c = tex.get(
-      p.x * tex.width,
-      p.y * tex.height);
-
-    var a = (c[0] + c[1] + c[2]) * 0.01;
-    p.x += 0.01 * Math.cos(a);
-    p.y += 0.01 * Math.sin(a);
-
-    pg.push();
-    pg.fill(p.color);
-    pg.shader(fx);
-    pg.translate(p.x * width, p.y * height);
-    pg.rotateX(frameCount * 0.01 + 5 * p.age);
-    pg.rotateY(frameCount * 0.03 - 5 * p.age);
-    var s = 100 * p.age;
-    pg.box(s * 2, s /5, s /5, 1, 1);
-    pg.pop();
-
-  }
-  pg.pop();
-
-  particles = particles.filter(function(v, i, a) { return v.age > 0.01; });
-
-  texture(pg);
-  plane(width, height);
-}
