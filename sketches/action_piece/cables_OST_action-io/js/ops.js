@@ -6301,3 +6301,45 @@ Ops.Gl.Matrix.OrbitControls.prototype = new CABLES.Op();
 
 //----------------
 
+
+
+// **************************************************************
+// 
+// Ops.Boolean.ToggleBool
+// 
+// **************************************************************
+
+Ops.Boolean.ToggleBool = function()
+{
+Op.apply(this, arguments);
+var op=this;
+var attachments={};
+op.name='ToggleBool';
+
+var trigger=op.inFunctionButton("trigger");
+var reset=op.inFunctionButton("reset");
+var outBool=op.addOutPort(new Port(op,"result",OP_PORT_TYPE_VALUE));
+var theBool=false;
+outBool.set(theBool);
+outBool.ignoreValueSerialize=true;
+
+trigger.onTriggered=function()
+{
+    theBool=!theBool;
+    outBool.set(theBool);
+};
+
+reset.onTriggered=function()
+{
+    theBool=false;
+    outBool.set(theBool);
+};
+
+
+
+};
+
+Ops.Boolean.ToggleBool.prototype = new CABLES.Op();
+
+//----------------
+
