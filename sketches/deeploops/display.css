@@ -1,13 +1,12 @@
 /* display.css - full screen projection */
 
 body {
-  padding: 0;
-  margin: 0;
-  background-color: #111;
-}
-
-canvas {
-  position: absolute;
-  top: 0;
-  left: 0;
+	padding: 0;
+	margin: 0;
+	background-color: #111;
+	background-color: #4d4d4d;
+	background-image: url(Capture.JPG);
+	background-position: center;
+	background-repeat: no-repeat;
+	background-size: 100%;
 }
