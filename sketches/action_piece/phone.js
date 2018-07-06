@@ -45,7 +45,7 @@ if (window.DeviceOrientationEvent) {
 } else if (window.DeviceMotionEvent) {
    //console.log('device Motion');
    window.addEventListener('devicemotion', function() {
-      tilt(event.acceleration.x * 2, event.acceleration.y * 2, event.acceleration.z * 2);
+      tilt(event.acceleration.x * 10, event.acceleration.y * 10, event.acceleration.z * 10);
    }, true);
 } else
    window.addEventListener("MozOrientation", function() {
@@ -66,7 +66,7 @@ function tilt(a, b, g, ab) {
          x: angleDistance(-a, -config.startPointAngle) / 90.0,
          y: angleDistance(0, -b) / 90.0
       };
-      //console.log('x: ' + point.x + ' | y: ' + point.y);
+		console.log('x: ' + point.x + ' | y: ' + point.y);
 
       //$('#a').css({
          //left: 100 + point.x * 100,

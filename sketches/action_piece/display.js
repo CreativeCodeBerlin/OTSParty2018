@@ -11,7 +11,7 @@ socket.on('reload', function(piecename) {
 
 var config = {
 	maxInputTime: 2500,
-   maxOffCount: 80*3,
+   maxOffCount: 80*2.2,
 	motionFactor: 2.5,
 }
 
@@ -28,11 +28,14 @@ var Phone = class Phone {
 	}
 
    update(now) {
-      if (now > this.lastInput + config.maxInputTime) {
-         this.status = 'death'
-         assignPoints();
-      }
+      if (now > this.lastInput + config.maxInputTime)
+			this.killPhone();
    }
+
+	killPhone() {
+		this.status = 'death';
+		assignPoints();
+	}
 
    setBusy() {
       socket.emit('dataChannel3', {
@@ -65,15 +68,22 @@ var Point = class Point {
          7
       ];
       this.lastPoint = [0,0,0];
+		this.visible = false;
 
       this.removePhone();
+		this.timeEvent = undefined;
    }
 
+   // TODO: manage never input phones
    assignPhone(phone) {
       this.phone = phone;
       this.phone.status = 'assigned';
       this.callUpdate = this._update;
       this.callUpload = this._upload;
+		this.visible = true;
+		this.timeEvent = setTimeout((function() {
+			this.phone.killPhone();
+		}).bind(this), 4000);
    }
 
    removePhone() {
@@ -99,12 +109,12 @@ var Point = class Point {
          CABLES.patch.config.setPoint();
 
          this.offCount++;
-      }
+      } else this.visible = false;
    }
 
-   // TODO: manage never input phones
    _update(now) {
       if (this.phone.lastInput != 0) {
+			clearTimeout(this.timeEvent);
          try {
             this.phone.update(now);
 
@@ -187,8 +197,6 @@ function interpolate(a, b, frac) {
 }
 
 function assignPoints() {
-   activePoints = [];
-
 	// clean death points
    for (var i in points) {
       var point = points[i];
@@ -197,8 +205,6 @@ function assignPoints() {
          if (phone.status === 'death') {
             point.removePhone();
             phone.disconnect();
-         } else {
-            activePoints.push(parseInt(i));
          }
       } else {
 
@@ -214,13 +220,10 @@ function assignPoints() {
          if (found) {
             point.assignPhone(phones[id]);
             phones[id].acceptRequest();
-            activePoints.push(parseInt(i));
          }
 
       }
    }
-
-   CABLES.patch.setVariable("activePoints", activePoints);
 }
 
 function updatePatch() {
@@ -229,11 +232,16 @@ function updatePatch() {
 
    var now = new Date().getTime();
 
+   activePoints = [];
+
    for (var i in points) {
       var point = points[i];
       point.update(now);
       point.upload(i)
+      if (point.visible) activePoints.push(parseInt(i));
    }
+
+   CABLES.patch.setVariable("activePoints", activePoints);
 }
 
 // init CABLES path
