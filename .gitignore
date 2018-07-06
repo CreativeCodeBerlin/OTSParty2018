@@ -6,7 +6,7 @@ yarn-debug.log*
 yarn-error.log*
 
 #ignore the libs directory
-libs
+/libs
 
 # Runtime data
 pids
