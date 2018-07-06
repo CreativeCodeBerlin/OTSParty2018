@@ -244,7 +244,7 @@ function updatePatch() {
    CABLES.patch.setVariable("activePoints", activePoints);
 }
 
-// debuggMode
+// debug mode
 $(document).keyup(function(e){
    if(e.keyCode == 32){ // space bar
          CABLES.patch.config.togglePerformance();
