@@ -53,8 +53,9 @@ socket.on('dataChannel1', processData);
 // --- p5.js ---
 
 function setup() {
-  createCanvas(windowWidth, windowHeight);
-  pg = createGraphics(windowWidth, windowHeight);
+	pixelDensity(1);
+	createCanvas(windowWidth, windowHeight);
+	pg = createGraphics(windowWidth, windowHeight);
 }
 
 function windowResized() {

@@ -31,6 +31,7 @@ socket.on('dataChannel1', function(data) {
 // --- p5.js ---
 
 function setup() {
+	pixelDensity(1);
   createCanvas(windowWidth, windowHeight);
 }
 
