@@ -4,6 +4,7 @@ const router = require('koa-router')();
 const send = require('koa-send');
 const socket = require('socket.io');
 const path = require('path');
+const osc = require('node-osc');
 
 global.__base = path.join(__dirname, '..');
 global.__sketchesDirectory = path.join(__base, 'sketches');
@@ -44,11 +45,13 @@ const io = socket(server);
 // pass socketio to the koa context
 app.context.io = io;
 
+// TODO: dynamically create client.
+var client = new osc.Client('192.168.178.134', 10627);
+
 io.on('connection', socket => {
    console.log(`socket connected | id ${socket.id}`);
 
 	socket.emit('connected', socket.id);
-
 
    // sketch data channels
 	socket.on('dataChannel1', msg => {
@@ -61,6 +64,11 @@ io.on('connection', socket => {
 
 	socket.on('dataChannel3', msg => {
 		socket.broadcast.emit('dataChannel3', msg);
+	});
+
+	socket.on('osc', msg => {
+		client.send(msg.address, msg.message, function () {
+		});	
 	});
 
 });
